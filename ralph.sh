@@ -86,7 +86,7 @@ all_tasks_done() {
 }
 
 get_next_task() {
-  grep 'Next eligible task:' "$PROJECT_DIR/docs/PROGRESS.md" 2>/dev/null | sed 's/.*: //'
+  grep 'Next eligible task:' "$PROJECT_DIR/docs/PROGRESS.md" 2>/dev/null | sed 's/.*: //' || true
 }
 
 count_remaining_tasks() {
@@ -101,8 +101,10 @@ count_done_tasks() {
 mark_completed_tasks() {
   local since_ts="$1"
   local task_ids
-  task_ids=$(git -C "$PROJECT_DIR" log --oneline --since="@${since_ts}" 2>/dev/null \
-    | grep -oE 'T-[0-9]+' | sort -u || true)
+  # Only match task IDs at the start of the commit subject (after the short hash),
+  # i.e. commits like "abc1234 T-004: Logger" — not "Update progress: T-003 complete, next T-004"
+  task_ids=$(git -C "$PROJECT_DIR" log --format='%s' --since="@${since_ts}" 2>/dev/null \
+    | grep -oE '^T-[0-9]+' | sort -u || true)
 
   for task_id in $task_ids; do
     local task_num="${task_id#T-}"
@@ -110,12 +112,12 @@ mark_completed_tasks() {
     # Find the task header line, then update the next Status line from TODO to DONE
     if grep -q "^### ${task_id}:" "$PROJECT_DIR/docs/TASKS.md" 2>/dev/null; then
       local line_num
-      line_num=$(grep -n "^### ${task_id}:" "$PROJECT_DIR/docs/TASKS.md" | head -1 | cut -d: -f1)
+      line_num=$(grep -n "^### ${task_id}:" "$PROJECT_DIR/docs/TASKS.md" | head -1 | cut -d: -f1 || true)
       if [[ -n "$line_num" ]]; then
         # Find the Status line within the next 5 lines after the header
         local status_line
         status_line=$(sed -n "$((line_num+1)),$((line_num+5))p" "$PROJECT_DIR/docs/TASKS.md" \
-          | grep -n '^\- \*\*Status\*\*: TODO' | head -1 | cut -d: -f1)
+          | grep -n '^\- \*\*Status\*\*: TODO' | head -1 | cut -d: -f1 || true)
         if [[ -n "$status_line" ]]; then
           local actual_line=$((line_num + status_line))
           sed -i '' "${actual_line}s/TODO/DONE/" "$PROJECT_DIR/docs/TASKS.md"
@@ -442,14 +444,14 @@ while true; do
 
   # Wait for Claude to finish
   if wait "$claude_pid" 2>/dev/null; then
-    kill "$watchdog_pid" 2>/dev/null; wait "$watchdog_pid" 2>/dev/null || true
-    if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null; wait "$monitor_pid" 2>/dev/null || true; fi
+    kill "$watchdog_pid" 2>/dev/null || true; wait "$watchdog_pid" 2>/dev/null || true
+    if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true; fi
     echo ""
     echo -e "${GREEN}[$(timestamp)] Iteration $iteration completed successfully.${RESET}"
   else
     exit_code=$?
-    kill "$watchdog_pid" 2>/dev/null; wait "$watchdog_pid" 2>/dev/null || true
-    if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null; wait "$monitor_pid" 2>/dev/null || true; fi
+    kill "$watchdog_pid" 2>/dev/null || true; wait "$watchdog_pid" 2>/dev/null || true
+    if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true; fi
     echo ""
     if [[ $exit_code -eq 137 || $exit_code -eq 143 ]]; then
       timed_out=true
