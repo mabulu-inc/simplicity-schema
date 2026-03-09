@@ -65,7 +65,7 @@
 ## Milestone 4: Planning and Execution
 
 ### T-009: Planner / diff engine
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-006, T-008
 - **Description**: Implement the diff engine — compare desired (YAML) state vs. actual (introspected) state. Produce an ordered list of operations: create/alter/drop for tables, columns, indexes, constraints, FKs, enums, functions, views, triggers, policies, grants, roles, comments, seeds. Block destructive operations unless allowDestructive is set. Emit tables without FKs first, add FKs later.
 - **Produces**: `src/planner/index.ts`, tests

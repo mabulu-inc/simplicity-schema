@@ -4,8 +4,8 @@
 
 <!-- Updated by each Ralph Loop iteration. Read this FIRST. -->
 
-Last completed task: T-008 (Database introspection)
-Next eligible task: T-009 (Planner / diff engine)
+Last completed task: T-009 (Planner / diff engine)
+Next eligible task: T-010 (Executor)
 
 ## Completed Tasks
 
@@ -18,3 +18,4 @@ Next eligible task: T-009 (Planner / diff engine)
 - **T-006**: YAML parser — `src/schema/parser.ts` with parsers for all schema kinds (table, enum, function, view, materialized view, role, extensions, mixin). Validates required fields, validates enum values (timing, method, security, etc.), applies defaults. `parseSchemaFile` auto-detects kind from YAML content. 38 new tests, 115 total passing.
 - **T-007**: Mixin system — `src/schema/mixins.ts` with `loadMixins` (builds name→MixinSchema registry, rejects duplicates) and `applyMixins` (merges columns/indexes/checks/triggers/policies/grants into table schemas, skips duplicate columns, substitutes `{table}` placeholder in all string fields). Immutable — does not mutate inputs. 19 new tests, 134 total passing.
 - **T-008**: Database introspection — `src/introspect/index.ts` with `getExistingTables`, `getExistingEnums`, `getExistingFunctions`, `getExistingViews`, `getExistingMaterializedViews`, `getExistingRoles`, and `introspectTable` (columns with types/nullability/defaults/PKs, indexes, check constraints, foreign keys, triggers, RLS policies, table/column comments). All queries use pg_catalog for accuracy. 16 new tests, 150 total passing.
+- **T-009**: Planner / diff engine — `src/planner/index.ts` with `buildPlan` that compares desired (YAML) state vs actual (introspected) state. Produces ordered operations across all object types (extensions, enums, roles, functions, tables, columns, indexes, FKs, views, materialized views, triggers, RLS policies, grants, comments, seeds). FKs added as NOT VALID then validated. Destructive operations blocked unless allowDestructive set. Operations sorted by phase for correct dependency order. 49 new tests, 199 total passing.
