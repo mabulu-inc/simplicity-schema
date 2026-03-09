@@ -21,6 +21,7 @@ import type {
   MaterializedViewSchema,
   RoleSchema,
   ForeignKeyAction,
+  ForeignKeyRef,
   TriggerTiming,
   TriggerEvent,
   TriggerForEach,
@@ -249,12 +250,17 @@ export async function introspectTable(client: Client, tableName: string, schema:
   for (const fk of fkInfo) {
     const col = columns.find((c) => c.name === fk.column);
     if (col) {
-      col.references = {
+      const ref: ForeignKeyRef = {
         table: fk.foreign_table,
         column: fk.foreign_column,
         on_delete: fk.on_delete,
         on_update: fk.on_update,
       };
+      if (fk.deferrable) {
+        ref.deferrable = true;
+        ref.initially_deferred = fk.initially_deferred;
+      }
+      col.references = ref;
     }
   }
 
@@ -282,6 +288,8 @@ interface FKInfo {
   foreign_column: string;
   on_delete: ForeignKeyAction;
   on_update: ForeignKeyAction;
+  deferrable: boolean;
+  initially_deferred: boolean;
 }
 
 const FK_ACTION_MAP: Record<string, ForeignKeyAction> = {
@@ -454,7 +462,9 @@ async function getForeignKeys(client: Client, table: string, schema: string): Pr
        cf.relname AS foreign_table,
        af.attname AS foreign_column,
        con.confdeltype AS on_delete,
-       con.confupdtype AS on_update
+       con.confupdtype AS on_update,
+       con.condeferrable AS deferrable,
+       con.condeferred AS initially_deferred
      FROM pg_catalog.pg_constraint con
      JOIN pg_catalog.pg_class cls ON cls.oid = con.conrelid
      JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
@@ -474,6 +484,8 @@ async function getForeignKeys(client: Client, table: string, schema: string): Pr
     foreign_column: r.foreign_column as string,
     on_delete: FK_ACTION_MAP[r.on_delete as string] || 'NO ACTION',
     on_update: FK_ACTION_MAP[r.on_update as string] || 'NO ACTION',
+    deferrable: r.deferrable as boolean,
+    initially_deferred: r.initially_deferred as boolean,
   }));
 }
 

@@ -575,11 +575,16 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     const constraintName = `fk_${table.table}_${col.name}_${ref.table}`;
     const onDelete = ref.on_delete || 'NO ACTION';
     const onUpdate = ref.on_update || 'NO ACTION';
+    let fkSql = `ALTER TABLE "${pgSchema}"."${table.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;
+    if (ref.deferrable) {
+      fkSql += ref.initially_deferred ? ' DEFERRABLE INITIALLY DEFERRED' : ' DEFERRABLE INITIALLY IMMEDIATE';
+    }
+    fkSql += ' NOT VALID';
     ops.push({
       type: 'add_foreign_key_not_valid',
       phase: 8,
       objectName: `${table.table}.${col.name}`,
-      sql: `ALTER TABLE "${pgSchema}"."${table.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate} NOT VALID`,
+      sql: fkSql,
       destructive: false,
     });
     ops.push({
@@ -696,11 +701,16 @@ function alterTableOps(desired: TableSchema, existing: TableSchema, pgSchema: st
         const constraintName = `fk_${desired.table}_${col.name}_${ref.table}`;
         const onDelete = ref.on_delete || 'NO ACTION';
         const onUpdate = ref.on_update || 'NO ACTION';
+        let fkSql = `ALTER TABLE "${pgSchema}"."${desired.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;
+        if (ref.deferrable) {
+          fkSql += ref.initially_deferred ? ' DEFERRABLE INITIALLY DEFERRED' : ' DEFERRABLE INITIALLY IMMEDIATE';
+        }
+        fkSql += ' NOT VALID';
         ops.push({
           type: 'add_foreign_key_not_valid',
           phase: 8,
           objectName: `${desired.table}.${col.name}`,
-          sql: `ALTER TABLE "${pgSchema}"."${desired.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate} NOT VALID`,
+          sql: fkSql,
           destructive: false,
         });
         ops.push({

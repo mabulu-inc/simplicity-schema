@@ -1846,4 +1846,119 @@ describe('Executor', () => {
       }
     });
   });
+
+  describe('foreign key options', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`CREATE TABLE "${testSchema}"."users" (id uuid PRIMARY KEY DEFAULT gen_random_uuid())`);
+        await client.query(`CREATE TABLE "${testSchema}"."orders" (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid)`);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes FK with ON DELETE CASCADE and ON UPDATE SET NULL', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'add_foreign_key_not_valid',
+          phase: 8,
+          objectName: 'orders.user_id',
+          sql: `ALTER TABLE "${testSchema}"."orders" ADD CONSTRAINT "fk_orders_user_id_users" FOREIGN KEY ("user_id") REFERENCES "${testSchema}"."users" ("id") ON DELETE CASCADE ON UPDATE SET NULL NOT VALID`,
+          destructive: false,
+        },
+        {
+          type: 'validate_constraint',
+          phase: 8,
+          objectName: 'orders.fk_orders_user_id_users',
+          sql: `ALTER TABLE "${testSchema}"."orders" VALIDATE CONSTRAINT "fk_orders_user_id_users"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(2);
+
+      // Verify FK options via pg_constraint
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT confdeltype, confupdtype FROM pg_constraint c
+           JOIN pg_namespace n ON n.oid = c.connamespace
+           WHERE n.nspname = $1 AND c.conname = $2 AND c.contype = 'f'`,
+          [testSchema, 'fk_orders_user_id_users'],
+        );
+        expect(res.rows).toHaveLength(1);
+        expect(res.rows[0].confdeltype).toBe('c'); // CASCADE
+        expect(res.rows[0].confupdtype).toBe('n'); // SET NULL
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes FK with DEFERRABLE INITIALLY DEFERRED', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'add_foreign_key_not_valid',
+          phase: 8,
+          objectName: 'orders.user_id',
+          sql: `ALTER TABLE "${testSchema}"."orders" ADD CONSTRAINT "fk_orders_user_id_users" FOREIGN KEY ("user_id") REFERENCES "${testSchema}"."users" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED NOT VALID`,
+          destructive: false,
+        },
+        {
+          type: 'validate_constraint',
+          phase: 8,
+          objectName: 'orders.fk_orders_user_id_users',
+          sql: `ALTER TABLE "${testSchema}"."orders" VALIDATE CONSTRAINT "fk_orders_user_id_users"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(2);
+
+      // Verify deferrable flags via pg_constraint
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT condeferrable, condeferred FROM pg_constraint c
+           JOIN pg_namespace n ON n.oid = c.connamespace
+           WHERE n.nspname = $1 AND c.conname = $2 AND c.contype = 'f'`,
+          [testSchema, 'fk_orders_user_id_users'],
+        );
+        expect(res.rows).toHaveLength(1);
+        expect(res.rows[0].condeferrable).toBe(true);
+        expect(res.rows[0].condeferred).toBe(true);
+      } finally {
+        client.release();
+      }
+    });
+  });
 });

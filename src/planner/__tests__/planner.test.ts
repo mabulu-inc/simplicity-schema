@@ -539,6 +539,53 @@ describe('Planner', () => {
       expect(valOps).toHaveLength(1);
     });
 
+    it('creates FK with on_update option', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'user_id', type: 'uuid', references: { table: 'users', column: 'id', on_delete: 'SET NULL', on_update: 'CASCADE' } },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const fkOps = findOps(result.operations, 'add_foreign_key_not_valid');
+      expect(fkOps).toHaveLength(1);
+      expect(fkOps[0].sql).toContain('ON DELETE SET NULL');
+      expect(fkOps[0].sql).toContain('ON UPDATE CASCADE');
+    });
+
+    it('creates FK with deferrable initially deferred', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'user_id', type: 'uuid', references: { table: 'users', column: 'id', deferrable: true, initially_deferred: true } },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const fkOps = findOps(result.operations, 'add_foreign_key_not_valid');
+      expect(fkOps).toHaveLength(1);
+      expect(fkOps[0].sql).toContain('DEFERRABLE INITIALLY DEFERRED');
+    });
+
+    it('creates FK with deferrable initially immediate', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'user_id', type: 'uuid', references: { table: 'users', column: 'id', deferrable: true, initially_deferred: false } },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const fkOps = findOps(result.operations, 'add_foreign_key_not_valid');
+      expect(fkOps).toHaveLength(1);
+      expect(fkOps[0].sql).toContain('DEFERRABLE INITIALLY IMMEDIATE');
+      expect(fkOps[0].sql).not.toContain('INITIALLY DEFERRED');
+    });
+
     it('creates table with triggers', () => {
       const desired = emptyDesired();
       desired.tables = [{

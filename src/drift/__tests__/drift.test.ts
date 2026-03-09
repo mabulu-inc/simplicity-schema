@@ -816,6 +816,96 @@ describe('detectDrift', () => {
     );
   });
 
+  it('reports FK on_delete action drift', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'posts',
+        columns: [
+          { name: 'id', type: 'integer', primary_key: true },
+          { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id', on_delete: 'CASCADE' } },
+        ],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('posts', {
+      table: 'posts',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id', on_delete: 'SET NULL' } },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        type: 'constraint',
+        object: expect.stringContaining('posts.user_id'),
+        status: 'different',
+        detail: expect.stringContaining('on_delete'),
+      }),
+    );
+  });
+
+  it('reports FK on_update action drift', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'posts',
+        columns: [
+          { name: 'id', type: 'integer', primary_key: true },
+          { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id', on_update: 'CASCADE' } },
+        ],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('posts', {
+      table: 'posts',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id', on_update: 'NO ACTION' } },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        type: 'constraint',
+        object: expect.stringContaining('posts.user_id'),
+        status: 'different',
+        detail: expect.stringContaining('on_update'),
+      }),
+    );
+  });
+
+  it('reports FK deferrable drift', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'posts',
+        columns: [
+          { name: 'id', type: 'integer', primary_key: true },
+          { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id', deferrable: true, initially_deferred: true } },
+        ],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('posts', {
+      table: 'posts',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id', deferrable: false } },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        type: 'constraint',
+        object: expect.stringContaining('posts.user_id'),
+        status: 'different',
+        detail: expect.stringContaining('deferrable'),
+      }),
+    );
+  });
+
   // ─── Unique constraint drift ──────────────────────────────────
 
   it('reports unique constraint missing in DB', () => {

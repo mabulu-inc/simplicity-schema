@@ -563,6 +563,49 @@ function driftForeignKeys(table: string, desired: ColumnDef[], actual: ColumnDef
           detail: `FK target differs: expected ${dRef.table}.${dRef.column}, actual ${aRef.table}.${aRef.column}`,
         });
       }
+      // Compare FK options
+      const dOnDelete = dRef.on_delete || 'NO ACTION';
+      const aOnDelete = aRef.on_delete || 'NO ACTION';
+      if (dOnDelete !== aOnDelete) {
+        items.push({
+          type: 'constraint',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          detail: `FK on_delete differs: expected ${dOnDelete}, actual ${aOnDelete}`,
+        });
+      }
+      const dOnUpdate = dRef.on_update || 'NO ACTION';
+      const aOnUpdate = aRef.on_update || 'NO ACTION';
+      if (dOnUpdate !== aOnUpdate) {
+        items.push({
+          type: 'constraint',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          detail: `FK on_update differs: expected ${dOnUpdate}, actual ${aOnUpdate}`,
+        });
+      }
+      const dDeferrable = dRef.deferrable || false;
+      const aDeferrable = aRef.deferrable || false;
+      if (dDeferrable !== aDeferrable) {
+        items.push({
+          type: 'constraint',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          detail: `FK deferrable differs: expected ${dDeferrable}, actual ${aDeferrable}`,
+        });
+      }
+      if (dDeferrable && aDeferrable) {
+        const dDeferred = dRef.initially_deferred || false;
+        const aDeferred = aRef.initially_deferred || false;
+        if (dDeferred !== aDeferred) {
+          items.push({
+            type: 'constraint',
+            object: `${table}.${dc.name}`,
+            status: 'different',
+            detail: `FK initially_deferred differs: expected ${dDeferred}, actual ${aDeferred}`,
+          });
+        }
+      }
     }
   }
   return items;

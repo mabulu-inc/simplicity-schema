@@ -254,6 +254,20 @@ describe('introspectTable', () => {
     expect(fkCol!.references!.on_delete).toBe('SET NULL');
   });
 
+  it('returns FK deferrable and initially_deferred flags', async () => {
+    await exec(`CREATE TABLE IF NOT EXISTS deferred_test (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id uuid,
+      CONSTRAINT fk_deferred_test_user FOREIGN KEY (user_id) REFERENCES users(id) DEFERRABLE INITIALLY DEFERRED
+    )`);
+    const table = await introspectTable(client, 'deferred_test', TEST_SCHEMA);
+    const fkCol = table.columns.find((c) => c.name === 'user_id');
+    expect(fkCol).toBeDefined();
+    expect(fkCol!.references).toBeDefined();
+    expect(fkCol!.references!.deferrable).toBe(true);
+    expect(fkCol!.references!.initially_deferred).toBe(true);
+  });
+
   it('returns triggers', async () => {
     const table = await introspectTable(client, 'products', TEST_SCHEMA);
     expect(table.triggers).toBeDefined();
