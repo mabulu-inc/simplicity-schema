@@ -4,8 +4,8 @@
 
 <!-- Updated by each Ralph Loop iteration. Read this FIRST. -->
 
-Last completed task: T-005 (Schema type definitions)
-Next eligible task: T-006 (YAML parser)
+Last completed task: T-006 (YAML parser)
+Next eligible task: T-007 (Mixin system)
 
 ## Completed Tasks
 
@@ -15,3 +15,4 @@ Next eligible task: T-006 (YAML parser)
 - **T-003**: File discovery and tracking — glob-based YAML/SQL discovery from schema dir with phase classification (pre/schema/post), SHA-256 hash-based file tracker using \_simplicity.history table, change detection via hash comparison. 62 tests passing.
 - **T-004**: Logger — Structured leveled logger (debug/info/warn/error) with colored output, verbose/quiet/json modes, configurable output streams. 15 tests passing.
 - **T-005**: Schema type definitions — All YAML schema types defined in `src/schema/types.ts`: TableSchema, ColumnDef, IndexDef, CheckDef, UniqueConstraintDef, TriggerDef, PolicyDef, FunctionSchema, FunctionArg, EnumSchema, ViewSchema, MaterializedViewSchema, RoleSchema, ExtensionsSchema, MixinSchema, GrantDef, FunctionGrantDef, PrecheckDef, and supporting types. 77 tests passing (no regressions).
+- **T-006**: YAML parser — `src/schema/parser.ts` with parsers for all schema kinds (table, enum, function, view, materialized view, role, extensions, mixin). Validates required fields, validates enum values (timing, method, security, etc.), applies defaults. `parseSchemaFile` auto-detects kind from YAML content. 38 new tests, 115 total passing.

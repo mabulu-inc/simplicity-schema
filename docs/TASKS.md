@@ -43,7 +43,7 @@
 - **Produces**: `src/schema/types.ts`
 
 ### T-006: YAML parser
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-005
 - **Description**: Implement YAML-to-typed-object parsers for each schema kind. Validate required fields, apply defaults.
 - **Produces**: `src/schema/parser.ts`, tests
