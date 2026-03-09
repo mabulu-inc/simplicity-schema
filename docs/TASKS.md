@@ -259,7 +259,7 @@
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`, `introspect.test.ts`, `drift.test.ts`
 
 ### T-038: Seed upsert execution
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-010
 - **Description**: Add executor integration tests for seed upsert (PRD §7.2 phase 15). Planner must generate `add_seed` operations that produce `INSERT ... ON CONFLICT (primary_key) DO UPDATE SET ...` SQL. Test both initial insert and update-on-conflict scenarios. Verify seed data exists in the table after execution. Implement any missing logic.
 - **Produces**: Tests in `executor.test.ts`
