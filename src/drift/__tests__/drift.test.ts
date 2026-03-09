@@ -1663,4 +1663,65 @@ describe('detectDrift', () => {
     const triggerDrift = report.items.filter((i) => i.type === 'trigger');
     expect(triggerDrift).toHaveLength(0);
   });
+
+  // ─── with_grant_option drift ───────────────────────────────────
+
+  it('detects drift when with_grant_option differs between desired and actual', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      grants: [{ to: 'reader', privileges: ['SELECT'], with_grant_option: true }],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      grants: [{ to: 'reader', privileges: ['SELECT'] }],
+    });
+    const report = detectDrift(desired, actual);
+    const grantDrift = report.items.filter((i) => i.type === 'grant');
+    expect(grantDrift.length).toBeGreaterThan(0);
+    expect(grantDrift).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'grant', status: 'different' }),
+      ]),
+    );
+  });
+
+  it('reports no drift when with_grant_option matches', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      grants: [{ to: 'reader', privileges: ['SELECT'], with_grant_option: true }],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      grants: [{ to: 'reader', privileges: ['SELECT'], with_grant_option: true }],
+    });
+    const report = detectDrift(desired, actual);
+    const grantDrift = report.items.filter((i) => i.type === 'grant');
+    expect(grantDrift).toHaveLength(0);
+  });
+
+  it('reports no drift when both omit with_grant_option', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      grants: [{ to: 'reader', privileges: ['SELECT'] }],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      grants: [{ to: 'reader', privileges: ['SELECT'] }],
+    });
+    const report = detectDrift(desired, actual);
+    const grantDrift = report.items.filter((i) => i.type === 'grant');
+    expect(grantDrift).toHaveLength(0);
+  });
 });

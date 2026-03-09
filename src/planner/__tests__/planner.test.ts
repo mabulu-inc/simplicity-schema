@@ -2104,4 +2104,49 @@ describe('Planner', () => {
       expect(createOps[0].sql).toContain('WHEN (OLD.email IS DISTINCT FROM NEW.email)');
     });
   });
+
+  describe('with_grant_option', () => {
+    it('produces GRANT ... WITH GRANT OPTION for table-level grants', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        grants: [{ to: 'admin', privileges: ['SELECT', 'INSERT'], with_grant_option: true }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const grantOps = findOps(result.operations, 'grant_table');
+      expect(grantOps).toHaveLength(1);
+      expect(grantOps[0].sql).toContain('WITH GRANT OPTION');
+    });
+
+    it('does not include WITH GRANT OPTION when flag is false', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        grants: [{ to: 'reader', privileges: ['SELECT'], with_grant_option: false }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const grantOps = findOps(result.operations, 'grant_table');
+      expect(grantOps).toHaveLength(1);
+      expect(grantOps[0].sql).not.toContain('WITH GRANT OPTION');
+    });
+
+    it('produces GRANT ... WITH GRANT OPTION for column-level grants', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+        ],
+        grants: [{ to: 'reader', privileges: ['SELECT'], columns: ['email'], with_grant_option: true }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const grantOps = findOps(result.operations, 'grant_column');
+      expect(grantOps).toHaveLength(1);
+      expect(grantOps[0].sql).toContain('WITH GRANT OPTION');
+      expect(grantOps[0].sql).toContain('SELECT ("email")');
+    });
+  });
 });

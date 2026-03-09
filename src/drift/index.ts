@@ -671,20 +671,30 @@ function driftGrants(table: string, desired: GrantDef[], actual: GrantDef[]): Dr
     const colsPart = g.columns && g.columns.length > 0 ? `:cols=${[...g.columns].sort().join(',')}` : '';
     return `${g.to}:${[...g.privileges].sort().join(',')}${colsPart}`;
   };
-  const actualKeys = new Set(actual.map(grantKey));
-  const desiredKeys = new Set(desired.map(grantKey));
+  const actualMap = new Map<string, GrantDef>();
+  for (const g of actual) actualMap.set(grantKey(g), g);
+  const desiredMap = new Map<string, GrantDef>();
+  for (const g of desired) desiredMap.set(grantKey(g), g);
 
   for (const g of desired) {
-    if (!actualKeys.has(grantKey(g))) {
+    const key = grantKey(g);
+    const match = actualMap.get(key);
+    if (!match) {
       items.push({
         type: 'grant',
         object: `${table}:${g.to}`,
         status: 'missing_in_db',
       });
+    } else if (!!g.with_grant_option !== !!match.with_grant_option) {
+      items.push({
+        type: 'grant',
+        object: `${table}:${g.to}`,
+        status: 'different',
+      });
     }
   }
   for (const g of actual) {
-    if (!desiredKeys.has(grantKey(g))) {
+    if (!desiredMap.has(grantKey(g))) {
       items.push({
         type: 'grant',
         object: `${table}:${g.to}`,

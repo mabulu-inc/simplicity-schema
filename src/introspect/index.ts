@@ -257,7 +257,7 @@ export async function getExistingRoles(client: Client): Promise<RoleSchema[]> {
 
 /** Introspect a single table, returning a TableSchema-compatible structure. */
 export async function introspectTable(client: Client, tableName: string, schema: string): Promise<TableSchema> {
-  const [columns, indexes, checks, triggers, policies, tableComment, fkInfo, columnGrants, compositePk] = await Promise.all([
+  const [columns, indexes, checks, triggers, policies, tableComment, fkInfo, columnGrants, compositePk, tableGrants] = await Promise.all([
     getColumns(client, tableName, schema),
     getIndexes(client, tableName, schema),
     getChecks(client, tableName, schema),
@@ -267,6 +267,7 @@ export async function introspectTable(client: Client, tableName: string, schema:
     getForeignKeys(client, tableName, schema),
     getColumnGrants(client, tableName, schema),
     getCompositePrimaryKey(client, tableName, schema),
+    getTableLevelGrants(client, tableName, schema),
   ]);
 
   // Merge FK info into columns
@@ -298,7 +299,8 @@ export async function introspectTable(client: Client, tableName: string, schema:
   if (triggers.length > 0) result.triggers = triggers;
   if (policies.length > 0) result.policies = policies;
   if (tableComment) result.comment = tableComment;
-  if (columnGrants.length > 0) result.grants = columnGrants;
+  const allGrants = [...columnGrants, ...tableGrants];
+  if (allGrants.length > 0) result.grants = allGrants;
 
   return result;
 }
@@ -630,6 +632,38 @@ async function getColumnGrants(client: Client, table: string, schema: string): P
         columns: cols,
       };
       if (row.is_grantable) grant.with_grant_option = true;
+      mergeMap.set(key, grant);
+    }
+  }
+
+  return Array.from(mergeMap.values());
+}
+
+async function getTableLevelGrants(client: Client, table: string, schema: string): Promise<GrantDef[]> {
+  const result = await client.query(
+    `SELECT grantee, privilege_type, is_grantable
+     FROM information_schema.table_privileges
+     WHERE table_schema = $2
+       AND table_name = $1
+       AND grantor <> grantee
+     ORDER BY grantee, privilege_type`,
+    [table, schema],
+  );
+
+  const mergeMap = new Map<string, GrantDef>();
+  for (const row of result.rows) {
+    const key = row.grantee as string;
+    const existing = mergeMap.get(key);
+    if (existing) {
+      existing.privileges.push(row.privilege_type as string);
+      existing.privileges.sort();
+      if (row.is_grantable === 'YES') existing.with_grant_option = true;
+    } else {
+      const grant: GrantDef = {
+        to: row.grantee as string,
+        privileges: [row.privilege_type as string],
+      };
+      if (row.is_grantable === 'YES') grant.with_grant_option = true;
       mergeMap.set(key, grant);
     }
   }

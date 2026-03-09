@@ -2380,4 +2380,62 @@ describe('Executor', () => {
       }
     });
   });
+
+  describe('with_grant_option', () => {
+    it('executes GRANT ... WITH GRANT OPTION on a table', async () => {
+      const testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      let client = await pool.connect();
+      const roleName = `wgo_role_${Date.now()}`;
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`CREATE TABLE "${testSchema}"."docs" (id serial PRIMARY KEY, title text)`);
+        await client.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${roleName}') THEN CREATE ROLE "${roleName}" NOLOGIN; END IF; END $$`);
+      } finally {
+        client.release();
+      }
+
+      const ops: Operation[] = [
+        {
+          type: 'grant_table',
+          phase: 13,
+          objectName: `docs.${roleName}`,
+          sql: `GRANT SELECT, INSERT ON "${testSchema}"."docs" TO "${roleName}" WITH GRANT OPTION`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result.executed).toBe(1);
+
+      // Verify the grant exists with WITH GRANT OPTION via information_schema
+      client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT privilege_type, is_grantable
+           FROM information_schema.table_privileges
+           WHERE table_schema = $1 AND table_name = 'docs' AND grantee = $2
+           ORDER BY privilege_type`,
+          [testSchema, roleName],
+        );
+        expect(res.rows.length).toBeGreaterThanOrEqual(2);
+        for (const row of res.rows) {
+          expect(row.is_grantable).toBe('YES');
+        }
+      } finally {
+        client.release();
+        const c = await pool.connect();
+        try {
+          await c.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+          await c.query(`DROP ROLE IF EXISTS "${roleName}"`);
+        } finally {
+          c.release();
+        }
+      }
+    });
+  });
 });
