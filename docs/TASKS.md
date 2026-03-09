@@ -299,7 +299,7 @@
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`, `introspect.test.ts`, `drift.test.ts`
 
 ### T-044: Grant with_grant_option
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Add planner and executor tests for `with_grant_option: true` on grants (PRD §4.1). Planner must produce `GRANT ... WITH GRANT OPTION` SQL. Introspection must detect whether a grant has WITH GRANT OPTION. Drift must report differences. Implement any missing logic.
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`, `drift.test.ts`
