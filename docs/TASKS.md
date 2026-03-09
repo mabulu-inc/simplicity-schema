@@ -183,7 +183,7 @@
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`
 
 ### T-027: Materialized view grants, comments, and refresh
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Add tests for: (1) grants on materialized views produce `grant_table` operations, (2) comments on materialized views produce `set_comment` operations, (3) `refresh_materialized_view` operation is produced when a materialized view's query changes (PRD §4.5, §7.2 phase 10, §7.3). Add parser, planner, and executor tests.
 - **Produces**: Tests in `parser.test.ts`, `planner.test.ts`, `executor.test.ts`
