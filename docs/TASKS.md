@@ -9,7 +9,7 @@
 - **Produces**: `src/core/config.ts`, `src/core/config-file.ts`, tests
 
 ### T-002: Database connection management
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-001
 - **Description**: Implement connection pool (pg.Pool singleton), `withClient`, `withTransaction`, retry logic for transient errors (lock timeout, serialization failure, deadlock). Configurable lock_timeout and statement_timeout.
 - **Produces**: `src/core/db.ts`, tests
