@@ -319,7 +319,7 @@
 ## Milestone 17: Coverage Gaps — CLI & Safety Features
 
 ### T-047: drift --apply execution
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-012, T-010
 - **Description**: Add integration test for `drift --apply` (PRD §6, §10). When drift is detected, `--apply` should generate fix operations and execute them. Test that after `drift --apply`, re-running drift shows no differences. Test that destructive fixes require `--allow-destructive`. Implement the apply logic in the drift pipeline if missing.
 - **Produces**: Tests in `drift.test.ts` or `cli.test.ts`, possibly updated `src/drift/index.ts`
