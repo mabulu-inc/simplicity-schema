@@ -1950,4 +1950,158 @@ describe('Planner', () => {
       expect(ops[0].sql).toContain('PRIMARY KEY ("tenant_id", "user_id", "role_id")');
     });
   });
+
+  // ─── Trigger for_each and when clause (T-042) ──────────────────
+
+  describe('trigger for_each and when clause', () => {
+    it('creates trigger with FOR EACH STATEMENT', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'audit_log',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'audit_after_truncate',
+          timing: 'AFTER',
+          events: ['TRUNCATE'],
+          function: 'log_truncate',
+          for_each: 'STATEMENT',
+        }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_trigger');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('FOR EACH STATEMENT');
+      expect(ops[0].sql).not.toContain('FOR EACH ROW');
+      expect(ops[0].sql).toContain('AFTER TRUNCATE');
+      expect(ops[0].sql).toContain('log_truncate()');
+    });
+
+    it('creates trigger with WHEN clause', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'set_updated_at',
+          timing: 'BEFORE',
+          events: ['UPDATE'],
+          function: 'update_timestamp',
+          for_each: 'ROW',
+          when: 'OLD.* IS DISTINCT FROM NEW.*',
+        }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_trigger');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('WHEN (OLD.* IS DISTINCT FROM NEW.*)');
+      expect(ops[0].sql).toContain('FOR EACH ROW');
+    });
+
+    it('creates trigger with FOR EACH STATEMENT and WHEN clause', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'check_batch',
+          timing: 'AFTER',
+          events: ['INSERT', 'UPDATE'],
+          function: 'validate_batch',
+          for_each: 'STATEMENT',
+          when: 'pg_trigger_depth() = 0',
+        }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_trigger');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('FOR EACH STATEMENT');
+      expect(ops[0].sql).toContain('WHEN (pg_trigger_depth() = 0)');
+      expect(ops[0].sql).toContain('INSERT OR UPDATE');
+    });
+
+    it('defaults for_each to ROW when not specified', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'items',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'trg_default',
+          timing: 'AFTER',
+          events: ['INSERT'],
+          function: 'notify_insert',
+        }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_trigger');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('FOR EACH ROW');
+    });
+
+    it('recreates trigger when for_each changes', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'events',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'trg_notify',
+          timing: 'AFTER',
+          events: ['INSERT'],
+          function: 'notify_event',
+          for_each: 'STATEMENT',
+        }],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('events', {
+        table: 'events',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'trg_notify',
+          timing: 'AFTER',
+          events: ['INSERT'],
+          function: 'notify_event',
+          for_each: 'ROW',
+        }],
+      });
+      const result = buildPlan(desired, actual);
+      const dropOps = findOps(result.operations, 'drop_trigger');
+      const createOps = findOps(result.operations, 'create_trigger');
+      expect(dropOps).toHaveLength(1);
+      expect(createOps).toHaveLength(1);
+      expect(createOps[0].sql).toContain('FOR EACH STATEMENT');
+    });
+
+    it('recreates trigger when when clause changes', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'trg_audit',
+          timing: 'AFTER',
+          events: ['UPDATE'],
+          function: 'audit_change',
+          for_each: 'ROW',
+          when: 'OLD.email IS DISTINCT FROM NEW.email',
+        }],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('users', {
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        triggers: [{
+          name: 'trg_audit',
+          timing: 'AFTER',
+          events: ['UPDATE'],
+          function: 'audit_change',
+          for_each: 'ROW',
+        }],
+      });
+      const result = buildPlan(desired, actual);
+      const dropOps = findOps(result.operations, 'drop_trigger');
+      const createOps = findOps(result.operations, 'create_trigger');
+      expect(dropOps).toHaveLength(1);
+      expect(createOps).toHaveLength(1);
+      expect(createOps[0].sql).toContain('WHEN (OLD.email IS DISTINCT FROM NEW.email)');
+    });
+  });
 });

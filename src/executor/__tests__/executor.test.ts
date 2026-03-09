@@ -2226,4 +2226,118 @@ describe('Executor', () => {
       }
     });
   });
+
+  // ─── Trigger for_each and when clause (T-042) ──────────────────
+
+  describe('trigger for_each and when clause', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`CREATE TABLE "${testSchema}".orders (id uuid PRIMARY KEY, total numeric DEFAULT 0)`);
+        await client.query(`
+          CREATE OR REPLACE FUNCTION "${testSchema}".log_truncate() RETURNS trigger AS $$
+          BEGIN RETURN NULL; END; $$ LANGUAGE plpgsql
+        `);
+        await client.query(`
+          CREATE OR REPLACE FUNCTION "${testSchema}".update_timestamp() RETURNS trigger AS $$
+          BEGIN NEW.total := NEW.total; RETURN NEW; END; $$ LANGUAGE plpgsql
+        `);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('creates trigger with FOR EACH STATEMENT', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_trigger',
+          phase: 11,
+          objectName: 'orders.trg_truncate_log',
+          sql: `CREATE TRIGGER "trg_truncate_log" AFTER TRUNCATE ON "${testSchema}"."orders" FOR EACH STATEMENT EXECUTE FUNCTION "${testSchema}".log_truncate()`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+        pgSchema: testSchema,
+      });
+      expect(result.executed).toBe(1);
+
+      // Verify trigger exists with correct for_each
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT t.tgname,
+                  CASE WHEN (t.tgtype & 1) != 0 THEN 'ROW' ELSE 'STATEMENT' END AS for_each
+           FROM pg_catalog.pg_trigger t
+           JOIN pg_catalog.pg_class cls ON cls.oid = t.tgrelid
+           JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
+           WHERE cls.relname = 'orders' AND ns.nspname = $1 AND t.tgname = 'trg_truncate_log'`,
+          [testSchema],
+        );
+        expect(res.rows).toHaveLength(1);
+        expect(res.rows[0].for_each).toBe('STATEMENT');
+      } finally {
+        client.release();
+      }
+    });
+
+    it('creates trigger with WHEN clause', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_trigger',
+          phase: 11,
+          objectName: 'orders.trg_update_check',
+          sql: `CREATE TRIGGER "trg_update_check" BEFORE UPDATE ON "${testSchema}"."orders" FOR EACH ROW WHEN (OLD.total IS DISTINCT FROM NEW.total) EXECUTE FUNCTION "${testSchema}".update_timestamp()`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+        pgSchema: testSchema,
+      });
+      expect(result.executed).toBe(1);
+
+      // Verify trigger exists with when clause
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT t.tgname,
+                  t.tgqual IS NOT NULL AS has_when
+           FROM pg_catalog.pg_trigger t
+           JOIN pg_catalog.pg_class cls ON cls.oid = t.tgrelid
+           JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
+           WHERE cls.relname = 'orders' AND ns.nspname = $1 AND t.tgname = 'trg_update_check'`,
+          [testSchema],
+        );
+        expect(res.rows).toHaveLength(1);
+        expect(res.rows[0].has_when).toBe(true);
+      } finally {
+        client.release();
+      }
+    });
+  });
 });

@@ -428,8 +428,11 @@ function driftTriggers(table: string, desired: TriggerDef[], actual: TriggerDef[
   const actualByName = new Map(actual.map((t) => [t.name, t]));
 
   for (const trg of desired) {
-    if (!actualByName.has(trg.name)) {
+    const act = actualByName.get(trg.name);
+    if (!act) {
       items.push({ type: 'trigger', object: `${table}.${trg.name}`, status: 'missing_in_db' });
+    } else if (triggersDiffer(trg, act)) {
+      items.push({ type: 'trigger', object: `${table}.${trg.name}`, status: 'different' });
     }
   }
 
@@ -440,6 +443,17 @@ function driftTriggers(table: string, desired: TriggerDef[], actual: TriggerDef[
     }
   }
   return items;
+}
+
+function triggersDiffer(desired: TriggerDef, actual: TriggerDef): boolean {
+  if (desired.timing !== actual.timing) return true;
+  if ((desired.for_each || 'ROW') !== (actual.for_each || 'ROW')) return true;
+  if ((desired.when || '') !== (actual.when || '')) return true;
+  if (desired.function !== actual.function) return true;
+  const dEvents = [...desired.events].sort().join(',');
+  const aEvents = [...actual.events].sort().join(',');
+  if (dEvents !== aEvents) return true;
+  return false;
 }
 
 function driftPolicies(table: string, desired: PolicyDef[], actual: PolicyDef[]): DriftItem[] {

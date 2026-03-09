@@ -1065,6 +1065,17 @@ function diffUniqueConstraints(
 
 // ─── Triggers ──────────────────────────────────────────────────
 
+function triggerNeedsRecreate(desired: TriggerDef, existing: TriggerDef): boolean {
+  if (desired.timing !== existing.timing) return true;
+  if ((desired.for_each || 'ROW') !== (existing.for_each || 'ROW')) return true;
+  if ((desired.when || '') !== (existing.when || '')) return true;
+  if (desired.function !== existing.function) return true;
+  const dEvents = [...desired.events].sort().join(',');
+  const eEvents = [...existing.events].sort().join(',');
+  if (dEvents !== eEvents) return true;
+  return false;
+}
+
 function diffTriggers(
   table: string,
   desired: TriggerDef[],
@@ -1078,8 +1089,16 @@ function diffTriggers(
     const existingTrigger = existingByName.get(trigger.name);
     if (!existingTrigger) {
       ops.push(createTriggerOp(table, trigger, pgSchema));
+    } else if (triggerNeedsRecreate(trigger, existingTrigger)) {
+      ops.push({
+        type: 'drop_trigger',
+        phase: 11,
+        objectName: `${table}.${trigger.name}`,
+        sql: `DROP TRIGGER IF EXISTS "${trigger.name}" ON "${pgSchema}"."${table}"`,
+        destructive: false,
+      });
+      ops.push(createTriggerOp(table, trigger, pgSchema));
     }
-    // If trigger exists, we could diff and recreate, but for now skip
   }
 
   // Drop triggers not in desired

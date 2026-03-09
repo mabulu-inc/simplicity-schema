@@ -1497,4 +1497,101 @@ describe('detectDrift', () => {
     expect(pkDrift).toHaveLength(1);
     expect(pkDrift[0].status).toBe('missing_in_yaml');
   });
+
+  // ─── Trigger for_each and when drift (T-042) ──────────────────
+
+  it('reports trigger drift when for_each differs', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'events',
+        columns: [{ name: 'id', type: 'integer', primary_key: true }],
+        triggers: [{ name: 'trg_notify', timing: 'AFTER', events: ['INSERT'], function: 'notify_event', for_each: 'STATEMENT' }],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('events', {
+      table: 'events',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      triggers: [{ name: 'trg_notify', timing: 'AFTER', events: ['INSERT'], function: 'notify_event', for_each: 'ROW' }],
+    });
+    const report = detectDrift(desired, actual);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        type: 'trigger',
+        object: 'events.trg_notify',
+        status: 'different',
+      }),
+    );
+  });
+
+  it('reports trigger drift when when clause differs', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'users',
+        columns: [{ name: 'id', type: 'integer', primary_key: true }],
+        triggers: [{ name: 'trg_audit', timing: 'AFTER', events: ['UPDATE'], function: 'audit_change', for_each: 'ROW', when: 'OLD.email IS DISTINCT FROM NEW.email' }],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      triggers: [{ name: 'trg_audit', timing: 'AFTER', events: ['UPDATE'], function: 'audit_change', for_each: 'ROW' }],
+    });
+    const report = detectDrift(desired, actual);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        type: 'trigger',
+        object: 'users.trg_audit',
+        status: 'different',
+      }),
+    );
+  });
+
+  it('reports trigger drift when timing differs', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'orders',
+        columns: [{ name: 'id', type: 'integer', primary_key: true }],
+        triggers: [{ name: 'trg_validate', timing: 'BEFORE', events: ['INSERT'], function: 'validate_order', for_each: 'ROW' }],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('orders', {
+      table: 'orders',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      triggers: [{ name: 'trg_validate', timing: 'AFTER', events: ['INSERT'], function: 'validate_order', for_each: 'ROW' }],
+    });
+    const report = detectDrift(desired, actual);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        type: 'trigger',
+        object: 'orders.trg_validate',
+        status: 'different',
+      }),
+    );
+  });
+
+  it('reports no trigger drift when triggers match', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'users',
+        columns: [{ name: 'id', type: 'integer', primary_key: true }],
+        triggers: [{ name: 'trg_audit', timing: 'AFTER', events: ['UPDATE'], function: 'audit_change', for_each: 'ROW', when: 'OLD.* IS DISTINCT FROM NEW.*' }],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      triggers: [{ name: 'trg_audit', timing: 'AFTER', events: ['UPDATE'], function: 'audit_change', for_each: 'ROW', when: 'OLD.* IS DISTINCT FROM NEW.*' }],
+    });
+    const report = detectDrift(desired, actual);
+    const triggerDrift = report.items.filter((i) => i.type === 'trigger');
+    expect(triggerDrift).toHaveLength(0);
+  });
 });
