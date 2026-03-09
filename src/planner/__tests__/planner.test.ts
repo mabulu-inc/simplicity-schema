@@ -130,6 +130,44 @@ describe('Planner', () => {
       const ops = findOps(result.operations, 'set_comment');
       expect(ops.some((o) => o.sql.includes('Status enum'))).toBe(true);
     });
+
+    it('blocks enum value removal by default', () => {
+      const desired = emptyDesired();
+      desired.enums = [{ name: 'status', values: ['active'] }];
+      const actual = emptyActual();
+      actual.enums.set('status', { name: 'status', values: ['active', 'inactive'] });
+      const result = buildPlan(desired, actual);
+      // Should be blocked (destructive)
+      expect(result.blocked).toHaveLength(1);
+      expect(result.blocked[0].type).toBe('remove_enum_value');
+      expect(result.blocked[0].objectName).toBe('status');
+      expect(result.blocked[0].destructive).toBe(true);
+      // Should not appear in operations
+      expect(findOps(result.operations, 'remove_enum_value')).toHaveLength(0);
+    });
+
+    it('allows enum value removal with allowDestructive', () => {
+      const desired = emptyDesired();
+      desired.enums = [{ name: 'status', values: ['active'] }];
+      const actual = emptyActual();
+      actual.enums.set('status', { name: 'status', values: ['active', 'inactive'] });
+      const result = buildPlan(desired, actual, { allowDestructive: true });
+      const ops = findOps(result.operations, 'remove_enum_value');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].objectName).toBe('status');
+      expect(ops[0].destructive).toBe(true);
+      expect(result.blocked).toHaveLength(0);
+    });
+
+    it('blocks removal of multiple enum values', () => {
+      const desired = emptyDesired();
+      desired.enums = [{ name: 'status', values: ['active'] }];
+      const actual = emptyActual();
+      actual.enums.set('status', { name: 'status', values: ['active', 'inactive', 'pending'] });
+      const result = buildPlan(desired, actual);
+      expect(result.blocked).toHaveLength(2);
+      expect(result.blocked.every((o) => o.type === 'remove_enum_value')).toBe(true);
+    });
   });
 
   describe('roles', () => {

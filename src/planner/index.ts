@@ -48,6 +48,7 @@ export type OperationType =
   // Enums
   | 'create_enum'
   | 'add_enum_value'
+  | 'remove_enum_value'
   // Functions
   | 'create_function'
   // Triggers
@@ -251,6 +252,18 @@ function diffEnums(
             objectName: desiredEnum.name,
             sql: `ALTER TYPE "${desiredEnum.name}" ADD VALUE IF NOT EXISTS '${val}'`,
             destructive: false,
+          });
+        }
+      }
+      // Detect removed values (destructive)
+      for (const val of existing.values) {
+        if (!desiredEnum.values.includes(val)) {
+          ops.push({
+            type: 'remove_enum_value',
+            phase: 3,
+            objectName: desiredEnum.name,
+            sql: `-- Enum value '${val}' removed from "${desiredEnum.name}" (requires recreating the type)`,
+            destructive: true,
           });
         }
       }
