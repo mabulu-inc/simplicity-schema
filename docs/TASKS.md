@@ -197,7 +197,7 @@
 ## Milestone 10: Coverage Gaps — CLI Commands
 
 ### T-029: Baseline command
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-011
 - **Description**: Implement and test the `baseline` command (PRD §6.1). This command marks the current DB state as baseline by creating history entries for all current schema files without running migrations. Add CLI arg parsing test and pipeline integration test.
 - **Produces**: Updated `src/cli/args.ts`, `src/cli/pipeline.ts`, tests in `cli.test.ts`
