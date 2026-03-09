@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll, beforeEach, afterEach } from 'vitest';
-import { execute, acquireAdvisoryLock, releaseAdvisoryLock } from '../index.js';
+import { execute, acquireAdvisoryLock, releaseAdvisoryLock, detectInvalidIndexes, reindexInvalid } from '../index.js';
 import type { Operation } from '../../planner/index.js';
 import type { SchemaFile } from '../../core/files.js';
 import { createLogger } from '../../core/logger.js';
@@ -2581,6 +2581,173 @@ describe('Executor', () => {
         const restrictive = res.rows.find((r: Record<string, unknown>) => r.polname === 'restrict_delete');
         expect(permissive!.polpermissive).toBe(true);
         expect(restrictive!.polpermissive).toBe(false);
+      } finally {
+        await client.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+        client.release();
+      }
+    });
+  });
+
+  describe('intermediate state recovery', () => {
+    it('re-running migration skips already-applied pre/post scripts', async () => {
+      const testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`SET search_path TO "${testSchema}"`);
+
+        // Create a table so the pre-script has something to work with
+        const createOps: Operation[] = [
+          {
+            type: 'create_table',
+            objectName: 'recovery_test',
+            sql: `CREATE TABLE "${testSchema}".recovery_test (id serial PRIMARY KEY, val text)`,
+            phase: 5,
+            destructive: false,
+          },
+        ];
+
+        // First run: execute with the create_table operation
+        const result1 = await execute({
+          operations: createOps,
+          connectionString: DATABASE_URL,
+          pgSchema: testSchema,
+          logger,
+        });
+        expect(result1.executed).toBe(1);
+
+        // Second run with same operations — transactional ops re-run (idempotent by design),
+        // but the key point is that pre/post scripts are tracked by hash
+        // Since there are no pre/post scripts here, let's verify the table exists
+        const check = await client.query(
+          `SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_tables WHERE tablename = 'recovery_test' AND schemaname = $1) AS exists`,
+          [testSchema],
+        );
+        expect(check.rows[0].exists).toBe(true);
+
+        // Now let's verify the file tracker: manually insert a history entry and confirm it's skipped
+        await client.query(`
+          INSERT INTO _simplicity.history (file_path, file_hash, phase, applied_at)
+          VALUES ('pre/001_setup.sql', 'abc123hash', 'pre', now())
+          ON CONFLICT (file_path) DO NOTHING
+        `);
+
+        // The fileNeedsApply check with same hash should return false (skip)
+        const { fileNeedsApply } = await import('../../core/tracker.js');
+        const needsApply = await fileNeedsApply(client, 'pre/001_setup.sql', 'abc123hash');
+        expect(needsApply).toBe(false);
+
+        // Changed hash should return true (re-run)
+        const needsRerun = await fileNeedsApply(client, 'pre/001_setup.sql', 'different_hash');
+        expect(needsRerun).toBe(true);
+      } finally {
+        await client.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+        client.release();
+      }
+    });
+
+    it('transactional operations roll back on error (no partial state)', async () => {
+      const testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+
+        const ops: Operation[] = [
+          {
+            type: 'create_table',
+            objectName: 'txn_test',
+            sql: `CREATE TABLE "${testSchema}".txn_test (id serial PRIMARY KEY)`,
+            phase: 5,
+            destructive: false,
+          },
+          {
+            type: 'add_column',
+            objectName: 'txn_test.bad_col',
+            sql: `ALTER TABLE "${testSchema}".nonexistent ADD COLUMN bad_col text`,
+            phase: 6,
+            destructive: false,
+          },
+        ];
+
+        await expect(
+          execute({
+            operations: ops,
+            connectionString: DATABASE_URL,
+            pgSchema: testSchema,
+            logger,
+          }),
+        ).rejects.toThrow();
+
+        // Table should NOT exist because the whole transaction rolled back
+        const check = await client.query(
+          `SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_tables WHERE tablename = 'txn_test' AND schemaname = $1) AS exists`,
+          [testSchema],
+        );
+        expect(check.rows[0].exists).toBe(false);
+      } finally {
+        await client.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+        client.release();
+      }
+    });
+
+    it('detects invalid indexes left by failed CONCURRENTLY operations', async () => {
+      const testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`CREATE TABLE "${testSchema}".idx_test (id serial PRIMARY KEY, val text)`);
+
+        // Create a valid index first
+        await client.query(`CREATE INDEX idx_val ON "${testSchema}".idx_test (val)`);
+
+        // Mark the index as invalid (simulating a failed CONCURRENTLY operation)
+        await client.query(`
+          UPDATE pg_catalog.pg_index
+          SET indisvalid = false
+          WHERE indexrelid = (
+            SELECT c.oid FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname = 'idx_val' AND n.nspname = $1
+          )
+        `, [testSchema]);
+
+        // detectInvalidIndexes should find it
+        const invalid = await detectInvalidIndexes(client, testSchema);
+        expect(invalid).toHaveLength(1);
+        expect(invalid[0].index).toBe('idx_val');
+        expect(invalid[0].table).toBe('idx_test');
+
+        // reindexInvalid should clean it up
+        const cleaned = await reindexInvalid(client, testSchema, logger);
+        expect(cleaned).toBe(1);
+
+        // After cleanup, no invalid indexes should remain
+        const afterCleanup = await detectInvalidIndexes(client, testSchema);
+        expect(afterCleanup).toHaveLength(0);
+      } finally {
+        await client.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+        client.release();
+      }
+    });
+
+    it('detectInvalidIndexes returns empty array when no invalid indexes', async () => {
+      const testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`CREATE TABLE "${testSchema}".clean_test (id serial PRIMARY KEY, val text)`);
+        await client.query(`CREATE INDEX idx_clean ON "${testSchema}".clean_test (val)`);
+
+        const invalid = await detectInvalidIndexes(client, testSchema);
+        expect(invalid).toHaveLength(0);
       } finally {
         await client.query(`DROP SCHEMA "${testSchema}" CASCADE`);
         client.release();

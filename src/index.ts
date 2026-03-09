@@ -69,8 +69,8 @@ export { buildPlan } from './planner/index.js';
 export type { OperationType, Operation, DesiredState, ActualState, PlanOptions, PlanResult } from './planner/index.js';
 
 // Executor
-export { execute, acquireAdvisoryLock, releaseAdvisoryLock } from './executor/index.js';
-export type { ExecuteOptions, ExecuteResult } from './executor/index.js';
+export { execute, acquireAdvisoryLock, releaseAdvisoryLock, detectInvalidIndexes, reindexInvalid } from './executor/index.js';
+export type { ExecuteOptions, ExecuteResult, InvalidIndex } from './executor/index.js';
 
 // Drift detection
 export { detectDrift } from './drift/index.js';

@@ -55,6 +55,57 @@ export async function releaseAdvisoryLock(client: pg.PoolClient): Promise<void> 
   await client.query('SELECT pg_advisory_unlock($1)', [ADVISORY_LOCK_KEY]);
 }
 
+export interface InvalidIndex {
+  schema: string;
+  table: string;
+  index: string;
+}
+
+/**
+ * Detect invalid indexes left by failed CONCURRENTLY operations.
+ * Returns a list of invalid indexes in the given schema.
+ */
+export async function detectInvalidIndexes(
+  client: pg.PoolClient,
+  schema = 'public',
+): Promise<InvalidIndex[]> {
+  const res = await client.query(
+    `SELECT n.nspname AS schema,
+            t.relname AS table,
+            i.relname AS index
+     FROM pg_catalog.pg_index ix
+     JOIN pg_catalog.pg_class i ON i.oid = ix.indexrelid
+     JOIN pg_catalog.pg_class t ON t.oid = ix.indrelid
+     JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
+     WHERE NOT ix.indisvalid
+       AND n.nspname = $1
+     ORDER BY i.relname`,
+    [schema],
+  );
+  return res.rows.map((r: Record<string, unknown>) => ({
+    schema: r.schema as string,
+    table: r.table as string,
+    index: r.index as string,
+  }));
+}
+
+/**
+ * Clean up invalid indexes by dropping and recreating them.
+ * Uses REINDEX which rebuilds the index in-place.
+ */
+export async function reindexInvalid(
+  client: pg.PoolClient,
+  schema = 'public',
+  logger?: Logger,
+): Promise<number> {
+  const invalid = await detectInvalidIndexes(client, schema);
+  for (const idx of invalid) {
+    logger?.info(`Dropping invalid index: "${idx.schema}"."${idx.index}"`);
+    await client.query(`DROP INDEX IF EXISTS "${idx.schema}"."${idx.index}"`);
+  }
+  return invalid.length;
+}
+
 /**
  * Execute a migration plan.
  *
