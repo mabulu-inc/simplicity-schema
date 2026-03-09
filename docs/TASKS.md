@@ -29,7 +29,7 @@
 - **Produces**: `src/core/files.ts`, `src/core/tracker.ts`, tests
 
 ### T-004: Logger
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-001
 - **Description**: Implement structured leveled logger with colored output.
 - **Produces**: `src/core/logger.ts`
