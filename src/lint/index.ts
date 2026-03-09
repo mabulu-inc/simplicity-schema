@@ -123,7 +123,7 @@ export function lintPlan(plan: PlanResult): LintResult {
       // Check if there's a corresponding CHECK constraint in the plan for the same table
       const hasCheck = allOps.some(
         (o) =>
-          o.type === 'add_check' &&
+          (o.type === 'add_check' || o.type === 'add_check_not_valid') &&
           o.objectName === op.objectName &&
           /IS\s+NOT\s+NULL/i.test(o.sql),
       );

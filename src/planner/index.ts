@@ -36,6 +36,8 @@ export type OperationType =
   | 'drop_index'
   // Constraints
   | 'add_check'
+  | 'add_check_not_valid'
+  | 'drop_check'
   | 'add_foreign_key'
   | 'add_foreign_key_not_valid'
   | 'validate_constraint'
@@ -704,11 +706,38 @@ function diffColumn(
         destructive: false,
       });
     } else {
+      // Safe NOT NULL pattern (PRD §8.3):
+      // 1. ADD CHECK (col IS NOT NULL) NOT VALID
+      // 2. VALIDATE CONSTRAINT (scans without ACCESS EXCLUSIVE lock)
+      // 3. ALTER COLUMN SET NOT NULL (instant — PG trusts validated check)
+      // 4. DROP the redundant check constraint
+      const checkName = `chk_${table}_${desired.name}_not_null`;
+      ops.push({
+        type: 'add_check_not_valid',
+        phase: 6,
+        objectName: `${table}.${desired.name}`,
+        sql: `ALTER TABLE "${pgSchema}"."${table}" ADD CONSTRAINT "${checkName}" CHECK ("${desired.name}" IS NOT NULL) NOT VALID`,
+        destructive: false,
+      });
+      ops.push({
+        type: 'validate_constraint',
+        phase: 6,
+        objectName: `${table}.${checkName}`,
+        sql: `ALTER TABLE "${pgSchema}"."${table}" VALIDATE CONSTRAINT "${checkName}"`,
+        destructive: false,
+      });
       ops.push({
         type: 'alter_column',
         phase: 6,
         objectName: `${table}.${desired.name}`,
         sql: `ALTER TABLE "${pgSchema}"."${table}" ALTER COLUMN "${desired.name}" SET NOT NULL`,
+        destructive: false,
+      });
+      ops.push({
+        type: 'drop_check',
+        phase: 6,
+        objectName: `${table}.${checkName}`,
+        sql: `ALTER TABLE "${pgSchema}"."${table}" DROP CONSTRAINT "${checkName}"`,
         destructive: false,
       });
     }

@@ -151,7 +151,7 @@
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`, `sql.test.ts`
 
 ### T-022: Safe NOT NULL pattern
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Add tests (and implement if missing) for the 4-step safe NOT NULL pattern from PRD §8.3: (1) ADD CHECK (col IS NOT NULL) NOT VALID, (2) VALIDATE CONSTRAINT, (3) ALTER COLUMN SET NOT NULL, (4) DROP redundant check constraint. The planner should produce these 4 operations when a column changes from nullable to non-nullable. Verify with planner tests and an executor integration test against real PG.
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`

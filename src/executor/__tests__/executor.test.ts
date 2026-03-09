@@ -277,6 +277,99 @@ describe('Executor', () => {
     });
   });
 
+  describe('safe NOT NULL pattern', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`CREATE TABLE "${testSchema}"."users" ("id" uuid PRIMARY KEY, "email" text)`);
+        // Insert a row so VALIDATE CONSTRAINT actually has data to check
+        await client.query(`INSERT INTO "${testSchema}"."users" (id, email) VALUES (gen_random_uuid(), 'test@example.com')`);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes the 4-step safe NOT NULL pattern successfully', async () => {
+      const checkName = 'chk_users_email_not_null';
+      const ops: Operation[] = [
+        {
+          type: 'add_check_not_valid',
+          phase: 6,
+          objectName: 'users.email',
+          sql: `ALTER TABLE "${testSchema}"."users" ADD CONSTRAINT "${checkName}" CHECK ("email" IS NOT NULL) NOT VALID`,
+          destructive: false,
+        },
+        {
+          type: 'validate_constraint',
+          phase: 6,
+          objectName: `users.${checkName}`,
+          sql: `ALTER TABLE "${testSchema}"."users" VALIDATE CONSTRAINT "${checkName}"`,
+          destructive: false,
+        },
+        {
+          type: 'alter_column',
+          phase: 6,
+          objectName: 'users.email',
+          sql: `ALTER TABLE "${testSchema}"."users" ALTER COLUMN "email" SET NOT NULL`,
+          destructive: false,
+        },
+        {
+          type: 'drop_check',
+          phase: 6,
+          objectName: `users.${checkName}`,
+          sql: `ALTER TABLE "${testSchema}"."users" DROP CONSTRAINT "${checkName}"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(4);
+
+      // Verify the column is now NOT NULL
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT is_nullable FROM information_schema.columns
+           WHERE table_schema = $1 AND table_name = 'users' AND column_name = 'email'`,
+          [testSchema],
+        );
+        expect(res.rows[0].is_nullable).toBe('NO');
+
+        // Verify the temporary check constraint was dropped
+        const constraints = await client.query(
+          `SELECT conname FROM pg_constraint c
+           JOIN pg_namespace n ON n.oid = c.connamespace
+           WHERE n.nspname = $1 AND conname = $2`,
+          [testSchema, checkName],
+        );
+        expect(constraints.rows.length).toBe(0);
+      } finally {
+        client.release();
+      }
+    });
+  });
+
   describe('pre/post scripts', () => {
     let testSchema: string;
 

@@ -264,7 +264,7 @@ describe('Planner', () => {
       expect(ops[0].sql).toContain('TYPE varchar(255)');
     });
 
-    it('alters column nullability', () => {
+    it('alters column nullability using safe NOT NULL pattern', () => {
       const desired = emptyDesired();
       desired.tables = [{
         table: 'users',
@@ -276,9 +276,27 @@ describe('Planner', () => {
         columns: [{ name: 'name', type: 'text', nullable: true }],
       });
       const result = buildPlan(desired, actual);
-      const ops = findOps(result.operations, 'alter_column');
-      expect(ops).toHaveLength(1);
-      expect(ops[0].sql).toContain('SET NOT NULL');
+
+      // Step 1: ADD CHECK NOT VALID
+      const checkOps = findOps(result.operations, 'add_check_not_valid');
+      expect(checkOps).toHaveLength(1);
+      expect(checkOps[0].sql).toContain('CHECK ("name" IS NOT NULL) NOT VALID');
+      expect(checkOps[0].sql).toContain('chk_users_name_not_null');
+
+      // Step 2: VALIDATE CONSTRAINT
+      const valOps = findOps(result.operations, 'validate_constraint');
+      expect(valOps).toHaveLength(1);
+      expect(valOps[0].sql).toContain('VALIDATE CONSTRAINT "chk_users_name_not_null"');
+
+      // Step 3: SET NOT NULL
+      const alterOps = findOps(result.operations, 'alter_column');
+      expect(alterOps).toHaveLength(1);
+      expect(alterOps[0].sql).toContain('SET NOT NULL');
+
+      // Step 4: DROP redundant check
+      const dropOps = findOps(result.operations, 'drop_check');
+      expect(dropOps).toHaveLength(1);
+      expect(dropOps[0].sql).toContain('DROP CONSTRAINT "chk_users_name_not_null"');
     });
 
     it('alters column default', () => {
@@ -786,6 +804,90 @@ describe('Planner', () => {
       const ops = findOps(result.operations, 'alter_column');
       expect(ops).toHaveLength(1);
       expect(ops[0].sql).toContain('DROP DEFAULT');
+    });
+  });
+
+  describe('safe NOT NULL pattern', () => {
+    it('produces 4 operations in correct order for nullable → non-nullable', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [{ name: 'total', type: 'numeric', nullable: false }],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('orders', {
+        table: 'orders',
+        columns: [{ name: 'total', type: 'numeric', nullable: true }],
+      });
+      const result = buildPlan(desired, actual);
+
+      // Filter to just the NOT NULL-related operations
+      const notNullOps = result.operations.filter(
+        (o) => o.type === 'add_check_not_valid' || o.type === 'validate_constraint' ||
+               (o.type === 'alter_column' && o.sql.includes('SET NOT NULL')) || o.type === 'drop_check',
+      );
+      expect(notNullOps).toHaveLength(4);
+      expect(notNullOps[0].type).toBe('add_check_not_valid');
+      expect(notNullOps[1].type).toBe('validate_constraint');
+      expect(notNullOps[2].type).toBe('alter_column');
+      expect(notNullOps[3].type).toBe('drop_check');
+    });
+
+    it('does NOT use safe pattern for non-nullable → nullable (just DROP NOT NULL)', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [{ name: 'total', type: 'numeric', nullable: true }],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('orders', {
+        table: 'orders',
+        columns: [{ name: 'total', type: 'numeric', nullable: false }],
+      });
+      const result = buildPlan(desired, actual);
+      const ops = findOps(result.operations, 'alter_column');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('DROP NOT NULL');
+      expect(findOps(result.operations, 'add_check_not_valid')).toHaveLength(0);
+    });
+
+    it('handles multiple columns going non-nullable in same table', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'email', type: 'text', nullable: false },
+          { name: 'name', type: 'text', nullable: false },
+        ],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('users', {
+        table: 'users',
+        columns: [
+          { name: 'email', type: 'text', nullable: true },
+          { name: 'name', type: 'text', nullable: true },
+        ],
+      });
+      const result = buildPlan(desired, actual);
+      expect(findOps(result.operations, 'add_check_not_valid')).toHaveLength(2);
+      expect(findOps(result.operations, 'validate_constraint')).toHaveLength(2);
+      expect(findOps(result.operations, 'drop_check')).toHaveLength(2);
+    });
+
+    it('does not trigger safe pattern on CREATE TABLE (direct NOT NULL is fine)', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text', nullable: false },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      // CREATE TABLE uses inline NOT NULL — no safe pattern needed
+      expect(findOps(result.operations, 'add_check_not_valid')).toHaveLength(0);
+      const createOps = findOps(result.operations, 'create_table');
+      expect(createOps[0].sql).toContain('"email" text NOT NULL');
     });
   });
 
