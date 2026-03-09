@@ -3,7 +3,7 @@
 ## Milestone 1: Reverse-Engineer schema-flow
 
 ### T-001: Architecture overview
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: (none)
 - **Description**: Map schema-flow's high-level architecture — modules, data flow, execution phases. Document the pipeline: YAML → parse → plan → execute.
 - **Source**: `../schema-flow/src/index.ts`, all module directories
