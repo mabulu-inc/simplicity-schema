@@ -117,7 +117,7 @@
 - **Produces**: `src/sql/index.ts`, tests
 
 ### T-017: Lint
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Implement static analysis rules on migration plans — warn about dangerous patterns (dropping columns, long-held locks, etc.).
 - **Produces**: `src/lint/index.ts`, tests
