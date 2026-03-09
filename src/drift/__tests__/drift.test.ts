@@ -1306,4 +1306,105 @@ describe('detectDrift', () => {
     const grantDrift = report.items.filter((i) => i.type === 'grant');
     expect(grantDrift.length).toBeGreaterThanOrEqual(1);
   });
+
+  // ─── Composite Primary Keys ─────────────────────────────────────
+
+  it('reports no drift when composite PKs match', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid' },
+        { name: 'product_id', type: 'uuid' },
+      ],
+      primary_key: ['order_id', 'product_id'],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('order_items', {
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid', primary_key: true },
+        { name: 'product_id', type: 'uuid', primary_key: true },
+      ],
+      primary_key: ['order_id', 'product_id'],
+    });
+    const report = detectDrift(desired, actual);
+    const pkDrift = report.items.filter((i) => i.object.includes('primary_key'));
+    expect(pkDrift).toHaveLength(0);
+  });
+
+  it('reports drift when composite PK is missing in DB', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid' },
+        { name: 'product_id', type: 'uuid' },
+      ],
+      primary_key: ['order_id', 'product_id'],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('order_items', {
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid' },
+        { name: 'product_id', type: 'uuid' },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    const pkDrift = report.items.filter((i) => i.object === 'order_items.primary_key');
+    expect(pkDrift).toHaveLength(1);
+    expect(pkDrift[0].status).toBe('missing_in_db');
+  });
+
+  it('reports drift when composite PK columns differ', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid' },
+        { name: 'product_id', type: 'uuid' },
+        { name: 'variant_id', type: 'uuid' },
+      ],
+      primary_key: ['order_id', 'product_id', 'variant_id'],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('order_items', {
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid', primary_key: true },
+        { name: 'product_id', type: 'uuid', primary_key: true },
+        { name: 'variant_id', type: 'uuid' },
+      ],
+      primary_key: ['order_id', 'product_id'],
+    });
+    const report = detectDrift(desired, actual);
+    const pkDrift = report.items.filter((i) => i.object === 'order_items.primary_key');
+    expect(pkDrift).toHaveLength(1);
+    expect(pkDrift[0].status).toBe('different');
+  });
+
+  it('reports drift when composite PK exists in DB but not in YAML', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid' },
+        { name: 'product_id', type: 'uuid' },
+      ],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('order_items', {
+      table: 'order_items',
+      columns: [
+        { name: 'order_id', type: 'uuid', primary_key: true },
+        { name: 'product_id', type: 'uuid', primary_key: true },
+      ],
+      primary_key: ['order_id', 'product_id'],
+    });
+    const report = detectDrift(desired, actual);
+    const pkDrift = report.items.filter((i) => i.object === 'order_items.primary_key');
+    expect(pkDrift).toHaveLength(1);
+    expect(pkDrift[0].status).toBe('missing_in_yaml');
+  });
 });

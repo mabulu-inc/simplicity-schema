@@ -230,6 +230,7 @@ function driftTables(
     if (!at) {
       items.push({ type: 'table', object: dt.table, status: 'missing_in_db' });
     } else {
+      items.push(...driftCompositePk(dt.table, dt.primary_key, at.primary_key));
       items.push(...driftColumns(dt.table, dt.columns, at.columns));
       items.push(...driftForeignKeys(dt.table, dt.columns, at.columns));
       items.push(...driftIndexes(dt.table, dt.indexes || [], at.indexes || []));
@@ -248,6 +249,38 @@ function driftTables(
     }
   }
   return items;
+}
+
+function driftCompositePk(table: string, desired?: string[], actual?: string[]): DriftItem[] {
+  const dPk = (desired || []).join(',');
+  const aPk = (actual || []).join(',');
+  if (dPk === aPk) return [];
+  if (dPk && !aPk) {
+    return [{
+      type: 'constraint',
+      object: `${table}.primary_key`,
+      status: 'missing_in_db',
+      expected: `(${desired!.join(', ')})`,
+      detail: `Composite PK expected: (${desired!.join(', ')})`,
+    }];
+  }
+  if (!dPk && aPk) {
+    return [{
+      type: 'constraint',
+      object: `${table}.primary_key`,
+      status: 'missing_in_yaml',
+      actual: `(${actual!.join(', ')})`,
+      detail: `Composite PK in DB: (${actual!.join(', ')})`,
+    }];
+  }
+  return [{
+    type: 'constraint',
+    object: `${table}.primary_key`,
+    status: 'different',
+    expected: `(${desired!.join(', ')})`,
+    actual: `(${actual!.join(', ')})`,
+    detail: `Composite PK differs: expected (${desired!.join(', ')}), actual (${actual!.join(', ')})`,
+  }];
 }
 
 function driftColumns(table: string, desired: ColumnDef[], actual: ColumnDef[]): DriftItem[] {

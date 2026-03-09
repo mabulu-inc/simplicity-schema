@@ -233,7 +233,7 @@ export async function getExistingRoles(client: Client): Promise<RoleSchema[]> {
 
 /** Introspect a single table, returning a TableSchema-compatible structure. */
 export async function introspectTable(client: Client, tableName: string, schema: string): Promise<TableSchema> {
-  const [columns, indexes, checks, triggers, policies, tableComment, fkInfo, columnGrants] = await Promise.all([
+  const [columns, indexes, checks, triggers, policies, tableComment, fkInfo, columnGrants, compositePk] = await Promise.all([
     getColumns(client, tableName, schema),
     getIndexes(client, tableName, schema),
     getChecks(client, tableName, schema),
@@ -242,6 +242,7 @@ export async function introspectTable(client: Client, tableName: string, schema:
     getTableComment(client, tableName, schema),
     getForeignKeys(client, tableName, schema),
     getColumnGrants(client, tableName, schema),
+    getCompositePrimaryKey(client, tableName, schema),
   ]);
 
   // Merge FK info into columns
@@ -262,6 +263,7 @@ export async function introspectTable(client: Client, tableName: string, schema:
     columns,
   };
 
+  if (compositePk.length > 1) result.primary_key = compositePk;
   if (indexes.length > 0) result.indexes = indexes;
   if (checks.length > 0) result.checks = checks;
   if (triggers.length > 0) result.triggers = triggers;
@@ -289,6 +291,23 @@ const FK_ACTION_MAP: Record<string, ForeignKeyAction> = {
   n: 'SET NULL',
   d: 'SET DEFAULT',
 };
+
+async function getCompositePrimaryKey(client: Client, table: string, schema: string): Promise<string[]> {
+  const result = await client.query(
+    `SELECT a.attname AS column_name
+     FROM pg_catalog.pg_constraint con
+     JOIN pg_catalog.pg_class cls ON cls.oid = con.conrelid
+     JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
+     JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid
+       AND a.attnum = ANY(con.conkey)
+     WHERE con.contype = 'p'
+       AND cls.relname = $1
+       AND ns.nspname = $2
+     ORDER BY array_position(con.conkey, a.attnum)`,
+    [table, schema],
+  );
+  return result.rows.map((r: Record<string, unknown>) => r.column_name as string);
+}
 
 async function getColumns(client: Client, table: string, schema: string): Promise<ColumnDef[]> {
   const result = await client.query(

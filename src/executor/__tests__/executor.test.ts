@@ -1547,4 +1547,81 @@ describe('Executor', () => {
       }
     });
   });
+
+  describe('composite primary keys', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should create a table with a composite primary key and enforce it', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'order_items',
+          sql: `CREATE TABLE "${testSchema}"."order_items" (
+  "order_id" uuid,
+  "product_id" uuid,
+  "quantity" integer NOT NULL,
+  PRIMARY KEY ("order_id", "product_id")
+)`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+        pgSchema: testSchema,
+      });
+      expect(result.executed).toBe(1);
+
+      // Verify composite PK exists and enforces uniqueness
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        // Insert a row
+        await client.query(
+          `INSERT INTO "${testSchema}"."order_items" (order_id, product_id, quantity) VALUES ($1, $2, 1)`,
+          ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
+        );
+        // Same PK should fail
+        await expect(
+          client.query(
+            `INSERT INTO "${testSchema}"."order_items" (order_id, product_id, quantity) VALUES ($1, $2, 2)`,
+            ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
+          ),
+        ).rejects.toThrow(/duplicate key|unique constraint/);
+        // Different combination should succeed
+        await client.query(
+          `INSERT INTO "${testSchema}"."order_items" (order_id, product_id, quantity) VALUES ($1, $2, 3)`,
+          ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003'],
+        );
+        const res = await client.query(`SELECT count(*) FROM "${testSchema}"."order_items"`);
+        expect(Number(res.rows[0].count)).toBe(2);
+      } finally {
+        client.release();
+      }
+    });
+  });
 });

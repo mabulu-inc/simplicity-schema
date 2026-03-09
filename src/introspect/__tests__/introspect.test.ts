@@ -371,3 +371,37 @@ describe('column-level grants introspection', () => {
     expect(grant!.columns).not.toContain('secret');
   });
 });
+
+describe('composite primary keys', () => {
+  beforeAll(async () => {
+    await exec(`CREATE TABLE order_items (
+      order_id uuid,
+      product_id uuid,
+      quantity integer NOT NULL,
+      PRIMARY KEY (order_id, product_id)
+    )`);
+    await exec(`CREATE TABLE single_pk (
+      id serial PRIMARY KEY,
+      name text
+    )`);
+  });
+
+  it('detects composite primary key and returns primary_key array', async () => {
+    const table = await introspectTable(client, 'order_items', TEST_SCHEMA);
+    expect(table.primary_key).toBeDefined();
+    expect(table.primary_key).toEqual(['order_id', 'product_id']);
+    // Individual columns should still be marked as primary_key
+    const orderIdCol = table.columns.find((c) => c.name === 'order_id');
+    const productIdCol = table.columns.find((c) => c.name === 'product_id');
+    expect(orderIdCol?.primary_key).toBe(true);
+    expect(productIdCol?.primary_key).toBe(true);
+  });
+
+  it('does not set primary_key array for single-column PK', async () => {
+    const table = await introspectTable(client, 'single_pk', TEST_SCHEMA);
+    expect(table.primary_key).toBeUndefined();
+    // Column should still be marked
+    const idCol = table.columns.find((c) => c.name === 'id');
+    expect(idCol?.primary_key).toBe(true);
+  });
+});

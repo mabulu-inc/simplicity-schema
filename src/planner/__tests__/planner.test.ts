@@ -1620,4 +1620,43 @@ describe('Planner', () => {
       expect(addOp.sql).toContain('GENERATED ALWAYS AS (price * quantity) STORED');
     });
   });
+
+  describe('composite primary keys', () => {
+    it('does not add individual PRIMARY KEY on columns when composite primary_key is set', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'order_items',
+        columns: [
+          { name: 'order_id', type: 'uuid' },
+          { name: 'product_id', type: 'uuid' },
+          { name: 'quantity', type: 'integer' },
+        ],
+        primary_key: ['order_id', 'product_id'],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_table');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('PRIMARY KEY ("order_id", "product_id")');
+      // Individual columns should NOT have PRIMARY KEY
+      expect(ops[0].sql).not.toMatch(/"order_id" uuid PRIMARY KEY/);
+      expect(ops[0].sql).not.toMatch(/"product_id" uuid PRIMARY KEY/);
+    });
+
+    it('creates table with 3-column composite primary key', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'tenant_user_roles',
+        columns: [
+          { name: 'tenant_id', type: 'uuid' },
+          { name: 'user_id', type: 'uuid' },
+          { name: 'role_id', type: 'uuid' },
+        ],
+        primary_key: ['tenant_id', 'user_id', 'role_id'],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_table');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('PRIMARY KEY ("tenant_id", "user_id", "role_id")');
+    });
+  });
 });
