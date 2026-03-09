@@ -79,7 +79,7 @@
 ## Milestone 5: CLI
 
 ### T-011: CLI entry point
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-010
 - **Description**: Implement CLI with commands: `run`, `run pre`, `run migrate`, `run post`, `plan`, `validate`, `status`, `init`, `help`. Wire up config resolution, logging, and the migration pipeline.
 - **Produces**: `src/cli/index.ts`, tests
