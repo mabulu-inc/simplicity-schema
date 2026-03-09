@@ -9,7 +9,7 @@ import {
 } from '../db.js';
 import pg from 'pg';
 
-const TEST_URL = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:56059/postgres';
+const TEST_URL = process.env.DATABASE_URL!;
 
 describe('db', () => {
   afterEach(async () => {
