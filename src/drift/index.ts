@@ -1,0 +1,476 @@
+/**
+ * Drift detection for simplicity-schema.
+ *
+ * Performs a read-only comparison of YAML definitions against the live
+ * database state, producing a structured DriftReport.
+ */
+
+import type { DesiredState, ActualState } from '../planner/index.js';
+import type {
+  TableSchema,
+  ColumnDef,
+  IndexDef,
+  CheckDef,
+  TriggerDef,
+  PolicyDef,
+  EnumSchema,
+  FunctionSchema,
+  ViewSchema,
+  MaterializedViewSchema,
+  RoleSchema,
+} from '../schema/types.js';
+
+// ─── Types ──────────────────────────────────────────────────────
+
+export type DriftItemType =
+  | 'table'
+  | 'column'
+  | 'index'
+  | 'constraint'
+  | 'enum'
+  | 'function'
+  | 'view'
+  | 'materialized_view'
+  | 'role'
+  | 'grant'
+  | 'trigger'
+  | 'policy'
+  | 'comment'
+  | 'seed'
+  | 'extension';
+
+export type DriftStatus = 'missing_in_db' | 'missing_in_yaml' | 'different';
+
+export interface DriftItem {
+  type: DriftItemType;
+  object: string;
+  status: DriftStatus;
+  expected?: string;
+  actual?: string;
+  detail?: string;
+}
+
+export interface DriftReport {
+  items: DriftItem[];
+  summary: { total: number; byType: Record<string, number> };
+}
+
+// ─── Main ───────────────────────────────────────────────────────
+
+export function detectDrift(desired: DesiredState, actual: ActualState): DriftReport {
+  const items: DriftItem[] = [];
+
+  items.push(...driftExtensions(desired.extensions, actual.extensions));
+  items.push(...driftEnums(desired.enums, actual.enums));
+  items.push(...driftRoles(desired.roles, actual.roles));
+  items.push(...driftFunctions(desired.functions, actual.functions));
+  items.push(...driftTables(desired.tables, actual.tables));
+  items.push(...driftViews(desired.views, actual.views));
+  items.push(...driftMaterializedViews(desired.materializedViews, actual.materializedViews));
+
+  const byType: Record<string, number> = {};
+  for (const item of items) {
+    byType[item.type] = (byType[item.type] || 0) + 1;
+  }
+
+  return { items, summary: { total: items.length, byType } };
+}
+
+// ─── Extensions ─────────────────────────────────────────────────
+
+function driftExtensions(
+  desired: DesiredState['extensions'],
+  actual: string[],
+): DriftItem[] {
+  const items: DriftItem[] = [];
+  const desiredExts = desired?.extensions ?? [];
+
+  for (const ext of desiredExts) {
+    if (!actual.includes(ext)) {
+      items.push({ type: 'extension', object: ext, status: 'missing_in_db' });
+    }
+  }
+  for (const ext of actual) {
+    if (!desiredExts.includes(ext)) {
+      items.push({ type: 'extension', object: ext, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+// ─── Enums ──────────────────────────────────────────────────────
+
+function driftEnums(
+  desired: EnumSchema[],
+  actual: Map<string, EnumSchema>,
+): DriftItem[] {
+  const items: DriftItem[] = [];
+
+  for (const de of desired) {
+    const ae = actual.get(de.name);
+    if (!ae) {
+      items.push({ type: 'enum', object: de.name, status: 'missing_in_db' });
+    } else {
+      const dv = de.values.join(', ');
+      const av = ae.values.join(', ');
+      if (dv !== av) {
+        items.push({
+          type: 'enum',
+          object: de.name,
+          status: 'different',
+          expected: dv,
+          actual: av,
+          detail: `Values differ: expected [${dv}], actual [${av}]`,
+        });
+      }
+    }
+  }
+  for (const [name] of actual) {
+    if (!desired.find((e) => e.name === name)) {
+      items.push({ type: 'enum', object: name, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+// ─── Roles ──────────────────────────────────────────────────────
+
+function driftRoles(
+  desired: RoleSchema[],
+  actual: Map<string, RoleSchema>,
+): DriftItem[] {
+  const items: DriftItem[] = [];
+
+  for (const dr of desired) {
+    const ar = actual.get(dr.role);
+    if (!ar) {
+      items.push({ type: 'role', object: dr.role, status: 'missing_in_db' });
+    } else {
+      const diffs: string[] = [];
+      if (dr.login !== undefined && dr.login !== ar.login) diffs.push('login');
+      if (dr.superuser !== undefined && dr.superuser !== ar.superuser) diffs.push('superuser');
+      if (dr.createdb !== undefined && dr.createdb !== ar.createdb) diffs.push('createdb');
+      if (dr.createrole !== undefined && dr.createrole !== ar.createrole) diffs.push('createrole');
+      if (dr.inherit !== undefined && dr.inherit !== ar.inherit) diffs.push('inherit');
+      if (dr.bypassrls !== undefined && dr.bypassrls !== ar.bypassrls) diffs.push('bypassrls');
+      if (dr.replication !== undefined && dr.replication !== ar.replication) diffs.push('replication');
+      if (diffs.length > 0) {
+        items.push({
+          type: 'role',
+          object: dr.role,
+          status: 'different',
+          detail: `Attributes differ: ${diffs.join(', ')}`,
+        });
+      }
+    }
+  }
+  for (const [name] of actual) {
+    if (!desired.find((r) => r.role === name)) {
+      items.push({ type: 'role', object: name, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+// ─── Functions ──────────────────────────────────────────────────
+
+function driftFunctions(
+  desired: FunctionSchema[],
+  actual: Map<string, FunctionSchema>,
+): DriftItem[] {
+  const items: DriftItem[] = [];
+
+  for (const df of desired) {
+    const af = actual.get(df.name);
+    if (!af) {
+      items.push({ type: 'function', object: df.name, status: 'missing_in_db' });
+    } else {
+      const diffs: string[] = [];
+      if (normalizeWhitespace(df.body) !== normalizeWhitespace(af.body)) diffs.push('body');
+      if (df.returns !== af.returns) diffs.push('returns');
+      if ((df.security || 'invoker') !== (af.security || 'invoker')) diffs.push('security');
+      if ((df.volatility || 'volatile') !== (af.volatility || 'volatile')) diffs.push('volatility');
+      if (diffs.length > 0) {
+        items.push({
+          type: 'function',
+          object: df.name,
+          status: 'different',
+          detail: `Differs in: ${diffs.join(', ')}`,
+        });
+      }
+    }
+  }
+  for (const [name] of actual) {
+    if (!desired.find((f) => f.name === name)) {
+      items.push({ type: 'function', object: name, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+// ─── Tables ─────────────────────────────────────────────────────
+
+function driftTables(
+  desired: TableSchema[],
+  actual: Map<string, TableSchema>,
+): DriftItem[] {
+  const items: DriftItem[] = [];
+
+  for (const dt of desired) {
+    const at = actual.get(dt.table);
+    if (!at) {
+      items.push({ type: 'table', object: dt.table, status: 'missing_in_db' });
+    } else {
+      items.push(...driftColumns(dt.table, dt.columns, at.columns));
+      items.push(...driftIndexes(dt.table, dt.indexes || [], at.indexes || []));
+      items.push(...driftChecks(dt.table, dt.checks || [], at.checks || []));
+      items.push(...driftTriggers(dt.table, dt.triggers || [], at.triggers || []));
+      items.push(...driftPolicies(dt.table, dt.policies || [], at.policies || []));
+      items.push(...driftTableComment(dt.table, dt.comment, at.comment));
+    }
+  }
+  for (const [name] of actual) {
+    if (!desired.find((t) => t.table === name)) {
+      items.push({ type: 'table', object: name, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+function driftColumns(table: string, desired: ColumnDef[], actual: ColumnDef[]): DriftItem[] {
+  const items: DriftItem[] = [];
+  const actualMap = new Map(actual.map((c) => [c.name, c]));
+  const desiredMap = new Map(desired.map((c) => [c.name, c]));
+
+  for (const dc of desired) {
+    const ac = actualMap.get(dc.name);
+    if (!ac) {
+      items.push({ type: 'column', object: `${table}.${dc.name}`, status: 'missing_in_db' });
+    } else {
+      // Type
+      if (normalizeTypeName(dc.type) !== normalizeTypeName(ac.type)) {
+        items.push({
+          type: 'column',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          expected: dc.type,
+          actual: ac.type,
+          detail: `Type: expected ${dc.type}, actual ${ac.type}`,
+        });
+      }
+      // Nullable
+      const dNullable = dc.nullable !== false;
+      const aNullable = ac.nullable !== false;
+      if (dNullable !== aNullable) {
+        items.push({
+          type: 'column',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          expected: dNullable ? 'nullable' : 'not null',
+          actual: aNullable ? 'nullable' : 'not null',
+          detail: `nullable: expected ${dNullable ? 'true' : 'false'}, actual ${aNullable ? 'true' : 'false'}`,
+        });
+      }
+      // Default
+      const dDefault = dc.default !== undefined ? String(dc.default) : undefined;
+      const aDefault = ac.default !== undefined ? String(ac.default) : undefined;
+      if (dDefault !== aDefault) {
+        items.push({
+          type: 'column',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          expected: dDefault ?? '(none)',
+          actual: aDefault ?? '(none)',
+          detail: `default: expected ${dDefault ?? '(none)'}, actual ${aDefault ?? '(none)'}`,
+        });
+      }
+    }
+  }
+
+  for (const ac of actual) {
+    if (!desiredMap.has(ac.name)) {
+      items.push({ type: 'column', object: `${table}.${ac.name}`, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+function driftIndexes(table: string, desired: IndexDef[], actual: IndexDef[]): DriftItem[] {
+  const items: DriftItem[] = [];
+  const actualByName = new Map<string, IndexDef>();
+  for (const idx of actual) {
+    if (idx.name) actualByName.set(idx.name, idx);
+  }
+
+  for (const idx of desired) {
+    const name = idx.name || `idx_${table}_${idx.columns.join('_')}`;
+    if (!actualByName.has(name)) {
+      items.push({ type: 'index', object: name, status: 'missing_in_db' });
+    }
+  }
+
+  const desiredNames = new Set(
+    desired.map((idx) => idx.name || `idx_${table}_${idx.columns.join('_')}`),
+  );
+  for (const idx of actual) {
+    if (idx.name && !desiredNames.has(idx.name)) {
+      items.push({ type: 'index', object: idx.name, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+function driftChecks(table: string, desired: CheckDef[], actual: CheckDef[]): DriftItem[] {
+  const items: DriftItem[] = [];
+  const actualByName = new Map(actual.map((c) => [c.name, c]));
+
+  for (const chk of desired) {
+    if (!actualByName.has(chk.name)) {
+      items.push({ type: 'constraint', object: `${table}.${chk.name}`, status: 'missing_in_db' });
+    }
+  }
+
+  const desiredNames = new Set(desired.map((c) => c.name));
+  for (const chk of actual) {
+    if (!desiredNames.has(chk.name)) {
+      items.push({ type: 'constraint', object: `${table}.${chk.name}`, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+function driftTriggers(table: string, desired: TriggerDef[], actual: TriggerDef[]): DriftItem[] {
+  const items: DriftItem[] = [];
+  const actualByName = new Map(actual.map((t) => [t.name, t]));
+
+  for (const trg of desired) {
+    if (!actualByName.has(trg.name)) {
+      items.push({ type: 'trigger', object: `${table}.${trg.name}`, status: 'missing_in_db' });
+    }
+  }
+
+  const desiredNames = new Set(desired.map((t) => t.name));
+  for (const trg of actual) {
+    if (!desiredNames.has(trg.name)) {
+      items.push({ type: 'trigger', object: `${table}.${trg.name}`, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+function driftPolicies(table: string, desired: PolicyDef[], actual: PolicyDef[]): DriftItem[] {
+  const items: DriftItem[] = [];
+  const actualByName = new Map(actual.map((p) => [p.name, p]));
+
+  for (const pol of desired) {
+    if (!actualByName.has(pol.name)) {
+      items.push({ type: 'policy', object: `${table}.${pol.name}`, status: 'missing_in_db' });
+    }
+  }
+
+  const desiredNames = new Set(desired.map((p) => p.name));
+  for (const pol of actual) {
+    if (!desiredNames.has(pol.name)) {
+      items.push({ type: 'policy', object: `${table}.${pol.name}`, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+function driftTableComment(table: string, desired?: string, actual?: string): DriftItem[] {
+  if (desired && desired !== actual) {
+    return [{
+      type: 'comment',
+      object: table,
+      status: 'different',
+      expected: desired,
+      actual: actual ?? '(none)',
+      detail: `Table comment: expected "${desired}", actual "${actual ?? '(none)'}"`,
+    }];
+  }
+  return [];
+}
+
+// ─── Views ──────────────────────────────────────────────────────
+
+function driftViews(
+  desired: ViewSchema[],
+  actual: Map<string, ViewSchema>,
+): DriftItem[] {
+  const items: DriftItem[] = [];
+
+  for (const dv of desired) {
+    const av = actual.get(dv.name);
+    if (!av) {
+      items.push({ type: 'view', object: dv.name, status: 'missing_in_db' });
+    } else if (normalizeWhitespace(dv.query) !== normalizeWhitespace(av.query)) {
+      items.push({
+        type: 'view',
+        object: dv.name,
+        status: 'different',
+        expected: dv.query,
+        actual: av.query,
+        detail: 'View query differs',
+      });
+    }
+  }
+  for (const [name] of actual) {
+    if (!desired.find((v) => v.name === name)) {
+      items.push({ type: 'view', object: name, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+// ─── Materialized Views ─────────────────────────────────────────
+
+function driftMaterializedViews(
+  desired: MaterializedViewSchema[],
+  actual: Map<string, MaterializedViewSchema>,
+): DriftItem[] {
+  const items: DriftItem[] = [];
+
+  for (const dv of desired) {
+    const av = actual.get(dv.name);
+    if (!av) {
+      items.push({ type: 'materialized_view', object: dv.name, status: 'missing_in_db' });
+    } else if (normalizeWhitespace(dv.query) !== normalizeWhitespace(av.query)) {
+      items.push({
+        type: 'materialized_view',
+        object: dv.name,
+        status: 'different',
+        expected: dv.query,
+        actual: av.query,
+        detail: 'Materialized view query differs',
+      });
+    }
+  }
+  for (const [name] of actual) {
+    if (!desired.find((v) => v.name === name)) {
+      items.push({ type: 'materialized_view', object: name, status: 'missing_in_yaml' });
+    }
+  }
+  return items;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────
+
+function normalizeTypeName(t: string): string {
+  const lower = t.toLowerCase().trim();
+  const aliases: Record<string, string> = {
+    int: 'integer',
+    int4: 'integer',
+    int8: 'bigint',
+    int2: 'smallint',
+    float4: 'real',
+    float8: 'double precision',
+    bool: 'boolean',
+    serial: 'integer',
+    bigserial: 'bigint',
+  };
+  return aliases[lower] || lower;
+}
+
+function normalizeWhitespace(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
+}
