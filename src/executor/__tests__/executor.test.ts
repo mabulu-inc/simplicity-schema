@@ -1624,4 +1624,226 @@ describe('Executor', () => {
       }
     });
   });
+
+  describe('seed upsert execution', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should insert seed data into a new table', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'statuses',
+          sql: `CREATE TABLE "${testSchema}"."statuses" ("id" integer PRIMARY KEY, "name" text NOT NULL)`,
+          destructive: false,
+        },
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'statuses',
+          sql: `INSERT INTO "${testSchema}"."statuses" ("id", "name") VALUES (1, 'active') ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name"`,
+          destructive: false,
+        },
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'statuses',
+          sql: `INSERT INTO "${testSchema}"."statuses" ("id", "name") VALUES (2, 'inactive') ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(3);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT id, name FROM "${testSchema}"."statuses" ORDER BY id`,
+        );
+        expect(res.rows).toHaveLength(2);
+        expect(res.rows[0]).toEqual({ id: 1, name: 'active' });
+        expect(res.rows[1]).toEqual({ id: 2, name: 'inactive' });
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should upsert seed data — update on conflict', async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        // Create table and insert initial data
+        await client.query(
+          `CREATE TABLE "${testSchema}"."statuses" ("id" integer PRIMARY KEY, "name" text NOT NULL)`,
+        );
+        await client.query(
+          `INSERT INTO "${testSchema}"."statuses" ("id", "name") VALUES (1, 'old_name'), (2, 'old_inactive')`,
+        );
+      } finally {
+        client.release();
+      }
+
+      // Run seed upsert — should update existing rows
+      const ops: Operation[] = [
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'statuses',
+          sql: `INSERT INTO "${testSchema}"."statuses" ("id", "name") VALUES (1, 'active') ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name"`,
+          destructive: false,
+        },
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'statuses',
+          sql: `INSERT INTO "${testSchema}"."statuses" ("id", "name") VALUES (2, 'inactive') ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name"`,
+          destructive: false,
+        },
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'statuses',
+          sql: `INSERT INTO "${testSchema}"."statuses" ("id", "name") VALUES (3, 'pending') ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(3);
+
+      const client2 = pool.connect();
+      const c = await client2;
+      try {
+        const res = await c.query(
+          `SELECT id, name FROM "${testSchema}"."statuses" ORDER BY id`,
+        );
+        expect(res.rows).toHaveLength(3);
+        expect(res.rows[0]).toEqual({ id: 1, name: 'active' });
+        expect(res.rows[1]).toEqual({ id: 2, name: 'inactive' });
+        expect(res.rows[2]).toEqual({ id: 3, name: 'pending' });
+      } finally {
+        c.release();
+      }
+    });
+
+    it('should handle seeds with uuid primary keys', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'users',
+          sql: `CREATE TABLE "${testSchema}"."users" ("id" uuid PRIMARY KEY, "email" text NOT NULL, "name" text)`,
+          destructive: false,
+        },
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'users',
+          sql: `INSERT INTO "${testSchema}"."users" ("id", "email", "name") VALUES ('00000000-0000-0000-0000-000000000001', 'admin@example.com', 'Admin') ON CONFLICT ("id") DO UPDATE SET "email" = EXCLUDED."email", "name" = EXCLUDED."name"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(2);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT id, email, name FROM "${testSchema}"."users"`,
+        );
+        expect(res.rows).toHaveLength(1);
+        expect(res.rows[0].email).toBe('admin@example.com');
+        expect(res.rows[0].name).toBe('Admin');
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should handle seeds with null values and booleans', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'settings',
+          sql: `CREATE TABLE "${testSchema}"."settings" ("key" text PRIMARY KEY, "value" text, "enabled" boolean NOT NULL DEFAULT true)`,
+          destructive: false,
+        },
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'settings',
+          sql: `INSERT INTO "${testSchema}"."settings" ("key", "value", "enabled") VALUES ('maintenance', NULL, FALSE) ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value", "enabled" = EXCLUDED."enabled"`,
+          destructive: false,
+        },
+        {
+          type: 'add_seed',
+          phase: 15,
+          objectName: 'settings',
+          sql: `INSERT INTO "${testSchema}"."settings" ("key", "value", "enabled") VALUES ('notifications', 'email', TRUE) ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value", "enabled" = EXCLUDED."enabled"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(3);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT key, value, enabled FROM "${testSchema}"."settings" ORDER BY key`,
+        );
+        expect(res.rows).toHaveLength(2);
+        expect(res.rows[0]).toEqual({ key: 'maintenance', value: null, enabled: false });
+        expect(res.rows[1]).toEqual({ key: 'notifications', value: 'email', enabled: true });
+      } finally {
+        client.release();
+      }
+    });
+  });
 });
