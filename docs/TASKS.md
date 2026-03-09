@@ -325,7 +325,7 @@
 - **Produces**: Tests in `drift.test.ts` or `cli.test.ts`, possibly updated `src/drift/index.ts`
 
 ### T-048: Extension drop requires --allow-destructive
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Add planner test verifying that `drop_extension` is blocked by default and requires `--allow-destructive` (PRD §8.1). If the planner doesn't block extension drops, add the logic. Also test `disable_rls` and `drop_trigger` blocking since they're listed in PRD §8.1.
 - **Produces**: Tests in `planner.test.ts`
