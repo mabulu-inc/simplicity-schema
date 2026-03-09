@@ -4,8 +4,8 @@
 
 <!-- Updated by each Ralph Loop iteration. Read this FIRST. -->
 
-Last completed task: T-020 (Test infrastructure)
-Next eligible task: T-021 (CONCURRENTLY indexes)
+Last completed task: T-021 (CONCURRENTLY indexes)
+Next eligible task: T-022 (Safe NOT NULL pattern)
 
 ## Completed Tasks
 
@@ -29,4 +29,5 @@ Next eligible task: T-021 (CONCURRENTLY indexes)
 - **T-018**: ERD generation — `src/erd/index.ts` with `generateErd` function that produces Mermaid ER diagrams from parsed TableSchema arrays. Renders tables with columns (type, name, PK/FK markers, comments), generates FK relationships as edges with correct cardinality (one-to-many, zero-or-many for nullable FKs, one-to-one for unique FKs). Supports composite primary keys. 11 new tests, 369 total passing.
 - **T-019**: Public API surface — `src/index.ts` barrel file re-exporting all public functionality: core (config, db, files, logger), schema parsing (parser, mixins, types), introspection, planner, executor, drift, lint, rollback, expand/contract, scaffold/generate, SQL generation, ERD generation, CLI pipeline. All types exported. 14 new tests, 383 total passing.
 - **T-020**: Test infrastructure — `src/testing/index.ts` with `useTestProject` (creates isolated PG schema + temp directory, returns config/migrate/drift/cleanup helpers) and `writeSchema` (writes YAML files to temp dirs with auto-created subdirectories). Full integration tests verify schema isolation, cleanup, migration pipeline, and drift detection. 6 new tests, 389 total passing.
+- **T-021**: CONCURRENTLY indexes — Planner generates `CREATE INDEX CONCURRENTLY` SQL with `concurrent` flag on operations. Executor splits concurrent ops out of the main transaction, executing them individually outside BEGIN/COMMIT. SQL generator places concurrent ops outside transaction blocks with dedicated section labels. 8 new tests, 397 total passing. — `src/testing/index.ts` with `useTestProject` (creates isolated PG schema + temp directory, returns config/migrate/drift/cleanup helpers) and `writeSchema` (writes YAML files to temp dirs with auto-created subdirectories). Full integration tests verify schema isolation, cleanup, migration pipeline, and drift detection. 6 new tests, 389 total passing.
 - **T-016**: SQL generation — `src/sql/index.ts` with `generateSql` function that renders a `PlanResult` as a standalone SQL string. Supports section comments by phase (Extensions, Enums, Tables, etc.), optional transaction wrapping (`wrapInTransaction`), optional blocked-operation comments (`includeBlocked`), header with generation timestamp, semicolon normalization. 11 new tests, 342 total passing. — `src/expand/index.ts` with `ensureExpandStateTable` (creates `_simplicity.expand_state`), `planExpandColumn` (generates operations: add column, create dual-write trigger function + trigger, backfill UPDATE), `runBackfill` (batch backfill with configurable batch size using ctid-based batching), `runContract` (drops old column, trigger, and trigger function within advisory-locked transaction; updates state to 'contracted'), `getExpandStatus` (lists all expand/contract states). Full lifecycle tested: expand → dual-write trigger fires on INSERT/UPDATE → backfill → contract drops old column. 10 new tests, 331 total passing.

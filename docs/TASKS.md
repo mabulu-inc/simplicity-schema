@@ -145,7 +145,7 @@
 ## Milestone 8: Coverage Gaps — Zero-Downtime Patterns
 
 ### T-021: CONCURRENTLY indexes
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-010
 - **Description**: Add tests (and implement if missing) verifying that `CREATE INDEX CONCURRENTLY` is used for index creation, and that CONCURRENTLY operations run outside of transactions (PRD §8.3). Add a planner test that index operations produce CONCURRENTLY SQL, and an executor test that CONCURRENTLY indexes are not wrapped in BEGIN/COMMIT. Also add SQL generation test verifying CONCURRENTLY ops appear outside transaction blocks (PRD §11.4).
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`, `sql.test.ts`
