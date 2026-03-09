@@ -553,6 +553,112 @@ describe('Executor', () => {
     });
   });
 
+  describe('role membership', () => {
+    const groupRole = `test_group_${Date.now()}`;
+    const memberRole = `test_member_${Date.now()}`;
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP ROLE IF EXISTS "${memberRole}"`);
+        await client.query(`DROP ROLE IF EXISTS "${groupRole}"`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes grant_membership operation successfully', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_role',
+          phase: 4,
+          objectName: groupRole,
+          sql: `CREATE ROLE "${groupRole}" NOLOGIN`,
+          destructive: false,
+        },
+        {
+          type: 'create_role',
+          phase: 4,
+          objectName: memberRole,
+          sql: `CREATE ROLE "${memberRole}" NOLOGIN`,
+          destructive: false,
+        },
+        {
+          type: 'grant_membership',
+          phase: 4,
+          objectName: `${memberRole}.${groupRole}`,
+          sql: `GRANT "${groupRole}" TO "${memberRole}"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(3);
+
+      // Verify the membership exists
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT 1 FROM pg_auth_members
+           WHERE roleid = (SELECT oid FROM pg_roles WHERE rolname = $1)
+             AND member = (SELECT oid FROM pg_roles WHERE rolname = $2)`,
+          [groupRole, memberRole],
+        );
+        expect(res.rows.length).toBe(1);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes alter_role with all attributes', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_role',
+          phase: 4,
+          objectName: memberRole,
+          sql: `CREATE ROLE "${memberRole}" NOLOGIN`,
+          destructive: false,
+        },
+        {
+          type: 'alter_role',
+          phase: 4,
+          objectName: memberRole,
+          sql: `ALTER ROLE "${memberRole}" LOGIN CREATEDB CONNECTION LIMIT 5`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(2);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT rolcanlogin, rolcreatedb, rolconnlimit FROM pg_roles WHERE rolname = $1`,
+          [memberRole],
+        );
+        expect(res.rows[0].rolcanlogin).toBe(true);
+        expect(res.rows[0].rolcreatedb).toBe(true);
+        expect(res.rows[0].rolconnlimit).toBe(5);
+      } finally {
+        client.release();
+      }
+    });
+  });
+
   describe('pre/post scripts', () => {
     let testSchema: string;
 

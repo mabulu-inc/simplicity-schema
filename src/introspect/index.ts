@@ -195,6 +195,22 @@ export async function getExistingRoles(client: Client): Promise<RoleSchema[]> {
      WHERE rolname NOT LIKE 'pg_%'
      ORDER BY rolname`,
   );
+  // Query role memberships
+  const memberships = await client.query(
+    `SELECT r.rolname AS member, g.rolname AS group_name
+     FROM pg_auth_members m
+     JOIN pg_roles r ON r.oid = m.member
+     JOIN pg_roles g ON g.oid = m.roleid
+     WHERE r.rolname NOT LIKE 'pg_%'`,
+  );
+  const membershipMap = new Map<string, string[]>();
+  for (const row of memberships.rows) {
+    const member = row.member as string;
+    const group = row.group_name as string;
+    if (!membershipMap.has(member)) membershipMap.set(member, []);
+    membershipMap.get(member)!.push(group);
+  }
+
   return result.rows.map((r: Record<string, unknown>) => {
     const role: RoleSchema = {
       role: r.role as string,
@@ -208,6 +224,8 @@ export async function getExistingRoles(client: Client): Promise<RoleSchema[]> {
       connection_limit: r.connection_limit as number,
     };
     if (r.comment) role.comment = r.comment as string;
+    const groups = membershipMap.get(role.role);
+    if (groups && groups.length > 0) role.in = groups;
     return role;
   });
 }

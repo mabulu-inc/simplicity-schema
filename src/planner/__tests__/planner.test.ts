@@ -201,6 +201,131 @@ describe('Planner', () => {
       expect(findOps(result.operations, 'alter_role')).toHaveLength(0);
       expect(findOps(result.operations, 'create_role')).toHaveLength(0);
     });
+
+    it('produces grant_membership when role has in field', () => {
+      const desired = emptyDesired();
+      desired.roles = [
+        { role: 'app_group' },
+        { role: 'app_readonly', login: false, in: ['app_group'] },
+      ];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_membership');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('GRANT "app_group" TO "app_readonly"');
+      expect(ops[0].objectName).toBe('app_readonly.app_group');
+    });
+
+    it('produces multiple grant_membership for multiple groups', () => {
+      const desired = emptyDesired();
+      desired.roles = [
+        { role: 'group_a' },
+        { role: 'group_b' },
+        { role: 'app_user', in: ['group_a', 'group_b'] },
+      ];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_membership');
+      expect(ops).toHaveLength(2);
+      expect(ops[0].sql).toContain('GRANT "group_a" TO "app_user"');
+      expect(ops[1].sql).toContain('GRANT "group_b" TO "app_user"');
+    });
+
+    it('skips grant_membership when membership already exists', () => {
+      const desired = emptyDesired();
+      desired.roles = [
+        { role: 'app_group' },
+        { role: 'app_readonly', login: false, in: ['app_group'] },
+      ];
+      const actual = emptyActual();
+      actual.roles.set('app_group', { role: 'app_group' });
+      actual.roles.set('app_readonly', { role: 'app_readonly', login: false, in: ['app_group'] });
+      const result = buildPlan(desired, actual);
+      expect(findOps(result.operations, 'grant_membership')).toHaveLength(0);
+    });
+
+    it('produces grant_membership for new group when role already exists', () => {
+      const desired = emptyDesired();
+      desired.roles = [
+        { role: 'group_a' },
+        { role: 'group_b' },
+        { role: 'app_user', in: ['group_a', 'group_b'] },
+      ];
+      const actual = emptyActual();
+      actual.roles.set('group_a', { role: 'group_a' });
+      actual.roles.set('app_user', { role: 'app_user', in: ['group_a'] });
+      const result = buildPlan(desired, actual);
+      const ops = findOps(result.operations, 'grant_membership');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('GRANT "group_b" TO "app_user"');
+    });
+
+    it('creates role with all attributes', () => {
+      const desired = emptyDesired();
+      desired.roles = [{
+        role: 'power_user',
+        login: true,
+        superuser: true,
+        createdb: true,
+        createrole: true,
+        inherit: false,
+        bypassrls: true,
+        replication: true,
+        connection_limit: 10,
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_role');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('LOGIN');
+      expect(ops[0].sql).toContain('SUPERUSER');
+      expect(ops[0].sql).toContain('CREATEDB');
+      expect(ops[0].sql).toContain('CREATEROLE');
+      expect(ops[0].sql).toContain('NOINHERIT');
+      expect(ops[0].sql).toContain('BYPASSRLS');
+      expect(ops[0].sql).toContain('REPLICATION');
+      expect(ops[0].sql).toContain('CONNECTION LIMIT 10');
+    });
+
+    it('alters role attributes correctly', () => {
+      const desired = emptyDesired();
+      desired.roles = [{
+        role: 'app_user',
+        superuser: true,
+        createdb: true,
+        createrole: true,
+        inherit: false,
+        bypassrls: true,
+        replication: true,
+      }];
+      const actual = emptyActual();
+      actual.roles.set('app_user', {
+        role: 'app_user',
+        superuser: false,
+        createdb: false,
+        createrole: false,
+        inherit: true,
+        bypassrls: false,
+        replication: false,
+      });
+      const result = buildPlan(desired, actual);
+      const ops = findOps(result.operations, 'alter_role');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('SUPERUSER');
+      expect(ops[0].sql).toContain('CREATEDB');
+      expect(ops[0].sql).toContain('CREATEROLE');
+      expect(ops[0].sql).toContain('NOINHERIT');
+      expect(ops[0].sql).toContain('BYPASSRLS');
+      expect(ops[0].sql).toContain('REPLICATION');
+    });
+
+    it('alters connection_limit when it differs', () => {
+      const desired = emptyDesired();
+      desired.roles = [{ role: 'app_user', connection_limit: 50 }];
+      const actual = emptyActual();
+      actual.roles.set('app_user', { role: 'app_user', connection_limit: -1 });
+      const result = buildPlan(desired, actual);
+      const ops = findOps(result.operations, 'alter_role');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('CONNECTION LIMIT 50');
+    });
   });
 
   describe('functions', () => {

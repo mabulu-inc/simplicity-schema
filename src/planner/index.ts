@@ -75,6 +75,7 @@ export type OperationType =
   | 'revoke_table'
   | 'grant_function'
   | 'revoke_function'
+  | 'grant_membership'
   | 'grant_sequence'
   | 'revoke_sequence'
   // Other
@@ -310,6 +311,22 @@ function diffRoles(
       }
     }
 
+    // Role group memberships
+    if (desiredRole.in && desiredRole.in.length > 0) {
+      const existingMemberships = existing?.in ?? [];
+      for (const group of desiredRole.in) {
+        if (!existingMemberships.includes(group)) {
+          ops.push({
+            type: 'grant_membership',
+            phase: 4,
+            objectName: `${desiredRole.role}.${group}`,
+            sql: `GRANT "${group}" TO "${desiredRole.role}"`,
+            destructive: false,
+          });
+        }
+      }
+    }
+
     if (desiredRole.comment) {
       ops.push({
         type: 'set_comment',
@@ -362,6 +379,9 @@ function diffRoleAttributes(desired: RoleSchema, actual: RoleSchema): string | n
   }
   if (desired.replication !== undefined && desired.replication !== actual.replication) {
     parts.push(desired.replication ? 'REPLICATION' : 'NOREPLICATION');
+  }
+  if (desired.connection_limit !== undefined && desired.connection_limit !== actual.connection_limit) {
+    parts.push(`CONNECTION LIMIT ${desired.connection_limit}`);
   }
   return parts.length > 0 ? parts.join(' ') : null;
 }
