@@ -267,7 +267,7 @@
 ## Milestone 15: Coverage Gaps — FK, Index, Function & Trigger Options
 
 ### T-039: Foreign key options in SQL generation
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009, T-008
 - **Description**: Add planner and executor tests verifying FK options from PRD §4.1: `on_delete` (CASCADE, SET NULL, SET DEFAULT, RESTRICT, NO ACTION), `on_update`, `deferrable`, `initially_deferred`. Planner must produce SQL with `ON DELETE CASCADE`, `DEFERRABLE INITIALLY DEFERRED`, etc. Introspection must read these options. Drift must detect when FK options differ. Implement any missing logic.
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`, `introspect.test.ts`, `drift.test.ts`
