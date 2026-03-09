@@ -6,7 +6,7 @@
 
 import { parseArgs } from './args.js';
 import { getHelpText, getVersionText } from './help.js';
-import { runPipeline, initProject, getStatus } from './pipeline.js';
+import { runPipeline, initProject, getStatus, runBaseline } from './pipeline.js';
 import { resolveConfig } from '../core/config.js';
 import { createLogger } from '../core/logger.js';
 import { testConnection, closePool } from '../core/db.js';
@@ -105,6 +105,21 @@ async function main(): Promise<void> {
         }
         if (config.json) {
           console.log(JSON.stringify(result, null, 2));
+        }
+        break;
+      }
+
+      case 'baseline': {
+        const connected = await testConnection(config.connectionString);
+        if (!connected) {
+          logger.error('Could not connect to database');
+          process.exitCode = 1;
+          return;
+        }
+
+        const baselineResult = await runBaseline(config, logger);
+        if (config.json) {
+          console.log(JSON.stringify(baselineResult, null, 2));
         }
         break;
       }

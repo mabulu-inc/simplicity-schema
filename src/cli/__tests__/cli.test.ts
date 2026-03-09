@@ -328,6 +328,122 @@ columns:
   });
 });
 
+describe('CLI baseline command', () => {
+  it('should parse "baseline" command', () => {
+    const result = parseArgs(['node', 'simplicity-schema', 'baseline']);
+    expect(result.command).toBe('baseline');
+  });
+
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'simplicity-baseline-'));
+  });
+
+  afterAll(async () => {
+    await closePool();
+  });
+
+  it('should record all schema files without running migrations', async () => {
+    // Create schema files
+    fs.mkdirSync(path.join(tmpDir, 'tables'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'enums'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'tables', 'users.yaml'), `
+table: users
+columns:
+  - name: id
+    type: uuid
+    primary_key: true
+    default: gen_random_uuid()
+  - name: email
+    type: text
+    nullable: false
+`);
+    fs.writeFileSync(path.join(tmpDir, 'enums', 'status.yaml'), `
+enum: status
+values:
+  - active
+  - inactive
+`);
+
+    const logger = createLogger({ verbose: false, quiet: true, json: false });
+    const { runBaseline } = await import('../pipeline.js');
+    const result = await runBaseline({
+      connectionString: DATABASE_URL,
+      baseDir: tmpDir,
+      pgSchema: 'public',
+      dryRun: false,
+      allowDestructive: false,
+      skipChecks: false,
+      lockTimeout: 5000,
+      statementTimeout: 30000,
+      maxRetries: 3,
+      historyTable: 'history',
+      verbose: false,
+      quiet: true,
+      json: false,
+    }, logger);
+
+    expect(result.filesRecorded).toBe(2);
+
+    // Verify files are recorded in history — status should show 0 pending
+    const { getStatus } = await import('../pipeline.js');
+    const status = await getStatus({
+      connectionString: DATABASE_URL,
+      baseDir: tmpDir,
+      pgSchema: 'public',
+      dryRun: false,
+      allowDestructive: false,
+      skipChecks: false,
+      lockTimeout: 5000,
+      statementTimeout: 30000,
+      maxRetries: 3,
+      historyTable: 'history',
+      verbose: false,
+      quiet: true,
+      json: false,
+    }, logger);
+
+    expect(status.appliedFiles).toBeGreaterThanOrEqual(2);
+    expect(status.pendingChanges).toBe(0);
+  });
+
+  it('should record pre and post scripts in baseline', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pre'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'post'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'tables'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pre', '001_setup.sql'), 'SELECT 1;');
+    fs.writeFileSync(path.join(tmpDir, 'post', '001_cleanup.sql'), 'SELECT 1;');
+    fs.writeFileSync(path.join(tmpDir, 'tables', 'items.yaml'), `
+table: items
+columns:
+  - name: id
+    type: serial
+    primary_key: true
+`);
+
+    const logger = createLogger({ verbose: false, quiet: true, json: false });
+    const { runBaseline } = await import('../pipeline.js');
+    const result = await runBaseline({
+      connectionString: DATABASE_URL,
+      baseDir: tmpDir,
+      pgSchema: 'public',
+      dryRun: false,
+      allowDestructive: false,
+      skipChecks: false,
+      lockTimeout: 5000,
+      statementTimeout: 30000,
+      maxRetries: 3,
+      historyTable: 'history',
+      verbose: false,
+      quiet: true,
+      json: false,
+    }, logger);
+
+    expect(result.filesRecorded).toBe(3);
+  });
+});
+
 describe('CLI help output', () => {
   it('should produce help text', async () => {
     const { getHelpText } = await import('../help.js');

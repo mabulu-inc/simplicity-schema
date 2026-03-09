@@ -24,7 +24,7 @@ import type { DesiredState, ActualState } from '../planner/index.js';
 import { execute } from '../executor/index.js';
 import type { ExecuteResult } from '../executor/index.js';
 import { getPool } from '../core/db.js';
-import { ensureHistoryTable, getHistory } from '../core/tracker.js';
+import { ensureHistoryTable, getHistory, recordFile } from '../core/tracker.js';
 import type {
   TableSchema,
   EnumSchema,
@@ -240,6 +240,44 @@ export function initProject(baseDir: string): void {
   const dirs = ['tables', 'enums', 'functions', 'views', 'roles', 'mixins', 'pre', 'post'];
   for (const dir of dirs) {
     fs.mkdirSync(path.join(baseDir, dir), { recursive: true });
+  }
+}
+
+/**
+ * Baseline result.
+ */
+export interface BaselineResult {
+  filesRecorded: number;
+}
+
+/**
+ * Mark the current DB state as baseline by recording all current schema files
+ * in the history table without running any migrations.
+ */
+export async function runBaseline(
+  config: SimplicitySchemaConfig,
+  logger: Logger,
+): Promise<BaselineResult> {
+  const pool = getPool(config.connectionString);
+  const client = await pool.connect();
+
+  try {
+    await ensureHistoryTable(client);
+
+    const discovered = await discoverSchemaFiles(config.baseDir);
+    const allFiles = [...discovered.pre, ...discovered.schema, ...discovered.post];
+
+    let recorded = 0;
+    for (const file of allFiles) {
+      await recordFile(client, file.relativePath, file.hash, file.phase);
+      recorded++;
+      logger.debug(`Recorded: ${file.relativePath} (${file.phase})`);
+    }
+
+    logger.info(`Baseline complete: ${recorded} files recorded`);
+    return { filesRecorded: recorded };
+  } finally {
+    client.release();
   }
 }
 

@@ -1,6 +1,6 @@
 import type { ConfigOverrides } from '../core/config.js';
 
-const VALID_COMMANDS = ['run', 'plan', 'validate', 'status', 'init', 'help'] as const;
+const VALID_COMMANDS = ['run', 'plan', 'validate', 'status', 'init', 'baseline', 'help'] as const;
 const RUN_SUBCOMMANDS = ['pre', 'migrate', 'post'] as const;
 
 export type Command = (typeof VALID_COMMANDS)[number] | 'version' | 'unknown';
