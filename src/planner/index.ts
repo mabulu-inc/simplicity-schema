@@ -76,6 +76,7 @@ export type OperationType =
   | 'grant_function'
   | 'revoke_function'
   | 'grant_membership'
+  | 'grant_schema'
   | 'grant_sequence'
   | 'revoke_sequence'
   // Other
@@ -211,6 +212,21 @@ function diffExtensions(
         sql: `DROP EXTENSION IF EXISTS "${ext}"`,
         destructive: true,
       });
+    }
+  }
+
+  // Schema grants (GRANT USAGE ON SCHEMA ... TO ...)
+  if (desired?.schema_grants) {
+    for (const sg of desired.schema_grants) {
+      for (const schema of sg.schemas) {
+        ops.push({
+          type: 'grant_schema',
+          phase: 13,
+          objectName: `${schema}.${sg.to}`,
+          sql: `GRANT USAGE ON SCHEMA "${schema}" TO "${sg.to}"`,
+          destructive: false,
+        });
+      }
     }
   }
 

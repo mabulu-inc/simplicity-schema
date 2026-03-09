@@ -553,6 +553,60 @@ describe('Executor', () => {
     });
   });
 
+  describe('schema grants', () => {
+    const schemaGrantRole = `test_schema_grant_${Date.now()}`;
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`REVOKE ALL ON SCHEMA public FROM "${schemaGrantRole}"`).catch(() => {});
+        await client.query(`DROP ROLE IF EXISTS "${schemaGrantRole}"`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes grant_schema operation successfully', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_role',
+          phase: 4,
+          objectName: schemaGrantRole,
+          sql: `CREATE ROLE "${schemaGrantRole}" NOLOGIN`,
+          destructive: false,
+        },
+        {
+          type: 'grant_schema',
+          phase: 13,
+          objectName: `public.${schemaGrantRole}`,
+          sql: `GRANT USAGE ON SCHEMA "public" TO "${schemaGrantRole}"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(2);
+
+      // Verify the schema usage grant exists
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT has_schema_privilege('${schemaGrantRole}', 'public', 'USAGE') AS has_priv`,
+        );
+        expect(res.rows[0].has_priv).toBe(true);
+      } finally {
+        client.release();
+      }
+    });
+  });
+
   describe('role membership', () => {
     const groupRole = `test_group_${Date.now()}`;
     const memberRole = `test_member_${Date.now()}`;

@@ -1409,4 +1409,48 @@ describe('Planner', () => {
       expect(ops[0].phase).toBe(7);
     });
   });
+
+  describe('extension schema_grants', () => {
+    it('produces grant_schema operations from schema_grants', () => {
+      const desired = emptyDesired();
+      desired.extensions = {
+        extensions: ['pgcrypto'],
+        schema_grants: [
+          { to: 'app_user', schemas: ['public'] },
+        ],
+      };
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_schema');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toBe('GRANT USAGE ON SCHEMA "public" TO "app_user"');
+      expect(ops[0].objectName).toBe('public.app_user');
+      expect(ops[0].phase).toBe(13);
+      expect(ops[0].destructive).toBe(false);
+    });
+
+    it('produces multiple grant_schema for multiple schemas and roles', () => {
+      const desired = emptyDesired();
+      desired.extensions = {
+        extensions: ['pgcrypto'],
+        schema_grants: [
+          { to: 'app_user', schemas: ['public', 'extensions'] },
+          { to: 'readonly', schemas: ['public'] },
+        ],
+      };
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_schema');
+      expect(ops).toHaveLength(3);
+      expect(ops[0].sql).toBe('GRANT USAGE ON SCHEMA "public" TO "app_user"');
+      expect(ops[1].sql).toBe('GRANT USAGE ON SCHEMA "extensions" TO "app_user"');
+      expect(ops[2].sql).toBe('GRANT USAGE ON SCHEMA "public" TO "readonly"');
+    });
+
+    it('produces no grant_schema when schema_grants is absent', () => {
+      const desired = emptyDesired();
+      desired.extensions = { extensions: ['pgcrypto'] };
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_schema');
+      expect(ops).toHaveLength(0);
+    });
+  });
 });
