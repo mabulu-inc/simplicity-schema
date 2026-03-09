@@ -337,7 +337,7 @@
 - **Produces**: Tests in `executor.test.ts`
 
 ### T-050: Expand/contract YAML-driven in normal run
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-015, T-009
 - **Description**: Add integration test verifying that the `expand` field on a column in YAML (PRD §4.1, §11.3) triggers expand operations during a normal `simplicity-schema run` (not just via explicit expand commands). The planner should detect `expand: { from, transform }` and produce expand_column, create_dual_write_trigger, and backfill_column operations as part of the standard migration plan. Implement any missing logic.
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`

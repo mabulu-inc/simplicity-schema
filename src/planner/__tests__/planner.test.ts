@@ -2323,4 +2323,124 @@ describe('Planner', () => {
       expect(result.blocked.some((o) => o.type === 'drop_materialized_view')).toBe(true);
     });
   });
+
+  // ─── Expand/contract YAML-driven (T-050) ──────────────────────
+
+  describe('expand/contract YAML-driven', () => {
+    it('produces expand operations when column has expand field on existing table', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+          { name: 'email_lower', type: 'text', expand: { from: 'email', transform: 'lower(email)' } },
+        ],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('users', {
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+        ],
+      });
+      const result = buildPlan(desired, actual);
+
+      // Should produce expand_column instead of plain add_column
+      const expandOps = findOps(result.operations, 'expand_column');
+      expect(expandOps).toHaveLength(1);
+      expect(expandOps[0].sql).toContain('ADD COLUMN');
+      expect(expandOps[0].sql).toContain('email_lower');
+
+      // Should produce dual-write trigger
+      const triggerOps = findOps(result.operations, 'create_dual_write_trigger');
+      expect(triggerOps).toHaveLength(1);
+      expect(triggerOps[0].sql).toContain('lower(');
+
+      // Should produce backfill
+      const backfillOps = findOps(result.operations, 'backfill_column');
+      expect(backfillOps).toHaveLength(1);
+      expect(backfillOps[0].sql).toContain('UPDATE');
+
+      // Should NOT produce a plain add_column
+      const addColOps = findOps(result.operations, 'add_column');
+      expect(addColOps).toHaveLength(0);
+    });
+
+    it('produces expand operations for new table with expand column', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+          { name: 'email_lower', type: 'text', expand: { from: 'email', transform: 'lower(email)' } },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+
+      // create_table should be generated for the table itself
+      const createOps = findOps(result.operations, 'create_table');
+      expect(createOps).toHaveLength(1);
+      // The expand column should NOT be in the CREATE TABLE SQL
+      expect(createOps[0].sql).not.toContain('email_lower');
+
+      // Expand operations should be generated separately
+      const expandOps = findOps(result.operations, 'expand_column');
+      expect(expandOps).toHaveLength(1);
+      const triggerOps = findOps(result.operations, 'create_dual_write_trigger');
+      expect(triggerOps).toHaveLength(1);
+      const backfillOps = findOps(result.operations, 'backfill_column');
+      expect(backfillOps).toHaveLength(1);
+    });
+
+    it('expand operations have higher phase than table creation', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+          { name: 'email_lower', type: 'text', expand: { from: 'email', transform: 'lower(email)' } },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+
+      const createOps = findOps(result.operations, 'create_table');
+      const expandOps = findOps(result.operations, 'expand_column');
+      const triggerOps = findOps(result.operations, 'create_dual_write_trigger');
+      const backfillOps = findOps(result.operations, 'backfill_column');
+
+      // Expand ops should come after table creation
+      expect(expandOps[0].phase).toBeGreaterThan(createOps[0].phase);
+      expect(triggerOps[0].phase).toBeGreaterThan(expandOps[0].phase);
+      expect(backfillOps[0].phase).toBeGreaterThan(triggerOps[0].phase);
+    });
+
+    it('uses identity transform for simple rename expand', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'full_name', type: 'text' },
+          { name: 'display_name', type: 'text', expand: { from: 'full_name', transform: 'full_name' } },
+        ],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('users', {
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'full_name', type: 'text' },
+        ],
+      });
+      const result = buildPlan(desired, actual);
+      const expandOps = findOps(result.operations, 'expand_column');
+      expect(expandOps).toHaveLength(1);
+      const backfillOps = findOps(result.operations, 'backfill_column');
+      expect(backfillOps[0].sql).toContain('full_name');
+    });
+  });
 });

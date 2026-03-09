@@ -22,6 +22,7 @@ import type {
   ExtensionsSchema,
   ForeignKeyRef,
 } from '../schema/types.js';
+import { planExpandColumn } from '../expand/index.js';
 
 // ─── Operation Types ───────────────────────────────────────────
 
@@ -83,6 +84,10 @@ export type OperationType =
   | 'revoke_sequence'
   // Prechecks
   | 'run_precheck'
+  // Expand/contract
+  | 'expand_column'
+  | 'create_dual_write_trigger'
+  | 'backfill_column'
   // Other
   | 'set_comment'
   | 'add_seed';
@@ -532,11 +537,18 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     }
   }
 
-  // Build CREATE TABLE with columns (no FKs)
+  // Build CREATE TABLE with columns (no FKs), excluding expand columns
   const colDefs: string[] = [];
   const fkColumns: ColumnDef[] = [];
+  const expandColumns: ColumnDef[] = [];
 
   for (const col of table.columns) {
+    // Expand columns are handled separately via expand operations
+    if (col.expand) {
+      expandColumns.push(col);
+      continue;
+    }
+
     let def = `"${col.name}" ${col.type}`;
     if (col.primary_key) def += ' PRIMARY KEY';
     if (col.nullable === false && !col.primary_key) def += ' NOT NULL';
@@ -577,6 +589,20 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     sql: `CREATE TABLE "${pgSchema}"."${table.table}" (\n  ${colDefs.join(',\n  ')}\n)`,
     destructive: false,
   });
+
+  // Expand columns — generate expand operations (phase 100+)
+  for (const col of expandColumns) {
+    const expandOps = planExpandColumn(table.table, col.name, col.type, col.expand!, pgSchema);
+    for (const eop of expandOps) {
+      ops.push({
+        type: eop.type as OperationType,
+        phase: eop.phase,
+        objectName: eop.objectName,
+        sql: eop.sql,
+        destructive: eop.destructive,
+      });
+    }
+  }
 
   // Indexes (phase 7)
   if (table.indexes) {
@@ -699,6 +725,21 @@ function alterTableOps(desired: TableSchema, existing: TableSchema, pgSchema: st
   for (const col of desired.columns) {
     const existingCol = existingColMap.get(col.name);
     if (!existingCol) {
+      // Expand columns use expand operations instead of plain add_column
+      if (col.expand) {
+        const expandOps = planExpandColumn(desired.table, col.name, col.type, col.expand, pgSchema);
+        for (const eop of expandOps) {
+          ops.push({
+            type: eop.type as OperationType,
+            phase: eop.phase,
+            objectName: eop.objectName,
+            sql: eop.sql,
+            destructive: eop.destructive,
+          });
+        }
+        continue;
+      }
+
       let def = `"${col.name}" ${col.type}`;
       if (col.nullable === false) def += ' NOT NULL';
       if (col.default !== undefined) def += ` DEFAULT ${col.default}`;

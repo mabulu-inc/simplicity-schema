@@ -2754,4 +2754,105 @@ describe('Executor', () => {
       }
     });
   });
+
+  describe('expand/contract YAML-driven execution (T-050)', () => {
+    it('executes expand operations from planner during normal run', async () => {
+      const testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        // Create table with source column and data
+        await client.query(`CREATE TABLE "${testSchema}".users (id serial PRIMARY KEY, email text NOT NULL)`);
+        await client.query(`INSERT INTO "${testSchema}".users (email) VALUES ('Alice@Example.com'), ('Bob@Test.org')`);
+        client.release();
+
+        // Use buildPlan to generate expand operations (simulating normal run)
+        const { buildPlan } = await import('../../planner/index.js');
+        const desired = {
+          tables: [{
+            table: 'users',
+            columns: [
+              { name: 'id', type: 'serial', primary_key: true },
+              { name: 'email', type: 'text', nullable: false },
+              { name: 'email_lower', type: 'text', expand: { from: 'email', transform: 'lower(email)' } },
+            ],
+          }],
+          enums: [],
+          functions: [],
+          views: [],
+          materializedViews: [],
+          roles: [],
+          extensions: null,
+        };
+        const actual = {
+          tables: new Map([['users', {
+            table: 'users',
+            columns: [
+              { name: 'id', type: 'serial', primary_key: true },
+              { name: 'email', type: 'text', nullable: false },
+            ],
+          }]]),
+          enums: new Map(),
+          functions: new Map(),
+          views: new Map(),
+          materializedViews: new Map(),
+          roles: new Map(),
+          extensions: [],
+        };
+
+        const plan = buildPlan(desired, actual, { pgSchema: testSchema });
+
+        // Verify expand operations were generated
+        const expandOps = plan.operations.filter((o) => o.type === 'expand_column');
+        expect(expandOps.length).toBe(1);
+        const triggerOps = plan.operations.filter((o) => o.type === 'create_dual_write_trigger');
+        expect(triggerOps.length).toBe(1);
+        const backfillOps = plan.operations.filter((o) => o.type === 'backfill_column');
+        expect(backfillOps.length).toBe(1);
+
+        // Execute the plan
+        const result = await execute({
+          connectionString: DATABASE_URL,
+          operations: plan.operations,
+          pgSchema: testSchema,
+          logger,
+        });
+        expect(result.executed).toBe(3);
+
+        // Verify: column exists, backfill worked, trigger fires
+        const verifyClient = await pool.connect();
+        try {
+          // Check backfilled data
+          const backfilled = await verifyClient.query(
+            `SELECT email, email_lower FROM "${testSchema}".users ORDER BY id`,
+          );
+          expect(backfilled.rows[0].email_lower).toBe('alice@example.com');
+          expect(backfilled.rows[1].email_lower).toBe('bob@test.org');
+
+          // Check dual-write trigger fires on new INSERT
+          await verifyClient.query(
+            `INSERT INTO "${testSchema}".users (email) VALUES ('Charlie@NewDomain.io')`,
+          );
+          const newRow = await verifyClient.query(
+            `SELECT email_lower FROM "${testSchema}".users WHERE email = 'Charlie@NewDomain.io'`,
+          );
+          expect(newRow.rows[0].email_lower).toBe('charlie@newdomain.io');
+        } finally {
+          await verifyClient.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+          verifyClient.release();
+        }
+      } catch (err) {
+        // Cleanup on error
+        const cleanupClient = await pool.connect();
+        try {
+          await cleanupClient.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+        } finally {
+          cleanupClient.release();
+        }
+        throw err;
+      }
+    });
+  });
 });
