@@ -462,8 +462,37 @@ function driftPolicies(table: string, desired: PolicyDef[], actual: PolicyDef[])
   const actualByName = new Map(actual.map((p) => [p.name, p]));
 
   for (const pol of desired) {
-    if (!actualByName.has(pol.name)) {
+    const act = actualByName.get(pol.name);
+    if (!act) {
       items.push({ type: 'policy', object: `${table}.${pol.name}`, status: 'missing_in_db' });
+    } else {
+      // Compare attributes
+      const details: string[] = [];
+      const dPermissive = pol.permissive !== false;
+      const aPermissive = act.permissive !== false;
+      if (dPermissive !== aPermissive) {
+        details.push(`permissive: expected ${dPermissive}, actual ${aPermissive}`);
+      }
+      if ((pol.for || 'ALL') !== (act.for || 'ALL')) {
+        details.push(`for: expected ${pol.for || 'ALL'}, actual ${act.for || 'ALL'}`);
+      }
+      if (pol.to !== act.to) {
+        details.push(`to: expected ${pol.to}, actual ${act.to}`);
+      }
+      if ((pol.using || '') !== (act.using || '')) {
+        details.push(`using: expected ${pol.using || '(none)'}, actual ${act.using || '(none)'}`);
+      }
+      if ((pol.check || '') !== (act.check || '')) {
+        details.push(`check: expected ${pol.check || '(none)'}, actual ${act.check || '(none)'}`);
+      }
+      if (details.length > 0) {
+        items.push({
+          type: 'policy',
+          object: `${table}.${pol.name}`,
+          status: 'different',
+          detail: details.join('; '),
+        });
+      }
     }
   }
 

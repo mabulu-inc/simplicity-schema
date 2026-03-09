@@ -1707,6 +1707,96 @@ describe('detectDrift', () => {
     expect(grantDrift).toHaveLength(0);
   });
 
+  it('reports different when policy permissive flag differs', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      policies: [{
+        name: 'user_select',
+        for: 'SELECT',
+        to: 'public',
+        permissive: false,
+      }],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      policies: [{
+        name: 'user_select',
+        for: 'SELECT',
+        to: 'public',
+        permissive: true,
+      }],
+    });
+    const report = detectDrift(desired, actual);
+    const policyDrift = report.items.filter((i) => i.type === 'policy');
+    expect(policyDrift).toHaveLength(1);
+    expect(policyDrift[0].status).toBe('different');
+    expect(policyDrift[0].detail).toContain('permissive');
+  });
+
+  it('reports no drift when policy permissive flags match', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      policies: [{
+        name: 'user_select',
+        for: 'SELECT',
+        to: 'public',
+        permissive: true,
+      }],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      policies: [{
+        name: 'user_select',
+        for: 'SELECT',
+        to: 'public',
+        permissive: true,
+      }],
+    });
+    const report = detectDrift(desired, actual);
+    const policyDrift = report.items.filter((i) => i.type === 'policy');
+    expect(policyDrift).toHaveLength(0);
+  });
+
+  it('reports different when policy using clause differs', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      policies: [{
+        name: 'user_select',
+        for: 'SELECT',
+        to: 'public',
+        using: 'id = 1',
+        permissive: true,
+      }],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('users', {
+      table: 'users',
+      columns: [{ name: 'id', type: 'integer', primary_key: true }],
+      policies: [{
+        name: 'user_select',
+        for: 'SELECT',
+        to: 'public',
+        using: 'id = 2',
+        permissive: true,
+      }],
+    });
+    const report = detectDrift(desired, actual);
+    const policyDrift = report.items.filter((i) => i.type === 'policy');
+    expect(policyDrift).toHaveLength(1);
+    expect(policyDrift[0].status).toBe('different');
+    expect(policyDrift[0].detail).toContain('using');
+  });
+
   it('reports no drift when both omit with_grant_option', () => {
     const desired = emptyDesired();
     desired.tables = [{

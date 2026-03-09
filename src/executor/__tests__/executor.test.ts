@@ -2438,4 +2438,72 @@ describe('Executor', () => {
       }
     });
   });
+
+  describe('policy permissive flag', () => {
+    it('creates permissive and restrictive policies', async () => {
+      const testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        const ops: Operation[] = [
+          {
+            type: 'create_table',
+            phase: 4,
+            objectName: 'policy_test',
+            sql: `CREATE TABLE "${testSchema}"."policy_test" (id integer PRIMARY KEY, owner text)`,
+            destructive: false,
+          },
+          {
+            type: 'enable_rls',
+            phase: 12,
+            objectName: 'policy_test',
+            sql: `ALTER TABLE "${testSchema}"."policy_test" ENABLE ROW LEVEL SECURITY`,
+            destructive: false,
+          },
+          {
+            type: 'create_policy',
+            phase: 12,
+            objectName: 'policy_test.allow_select',
+            sql: `CREATE POLICY "allow_select" ON "${testSchema}"."policy_test" AS PERMISSIVE FOR SELECT TO "public" USING (true)`,
+            destructive: false,
+          },
+          {
+            type: 'create_policy',
+            phase: 12,
+            objectName: 'policy_test.restrict_delete',
+            sql: `CREATE POLICY "restrict_delete" ON "${testSchema}"."policy_test" AS RESTRICTIVE FOR DELETE TO "public" USING (false)`,
+            destructive: false,
+          },
+        ];
+
+        await execute({
+          operations: ops,
+          blocked: [],
+          connectionString: DATABASE_URL,
+          pgSchema: testSchema,
+          logger,
+        });
+
+        // Verify policies exist with correct permissive flags
+        const res = await client.query(
+          `SELECT pol.polname, pol.polpermissive
+           FROM pg_catalog.pg_policy pol
+           JOIN pg_catalog.pg_class cls ON cls.oid = pol.polrelid
+           JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
+           WHERE cls.relname = 'policy_test' AND ns.nspname = $1
+           ORDER BY pol.polname`,
+          [testSchema],
+        );
+        expect(res.rows).toHaveLength(2);
+        const permissive = res.rows.find((r: Record<string, unknown>) => r.polname === 'allow_select');
+        const restrictive = res.rows.find((r: Record<string, unknown>) => r.polname === 'restrict_delete');
+        expect(permissive!.polpermissive).toBe(true);
+        expect(restrictive!.polpermissive).toBe(false);
+      } finally {
+        await client.query(`DROP SCHEMA "${testSchema}" CASCADE`);
+        client.release();
+      }
+    });
+  });
 });

@@ -1157,7 +1157,18 @@ function diffPolicies(
   }
 
   for (const policy of desired) {
-    if (!existingByName.has(policy.name)) {
+    const existing_policy = existingByName.get(policy.name);
+    if (!existing_policy) {
+      ops.push(createPolicyOp(table, policy, pgSchema));
+    } else if (policyChanged(policy, existing_policy)) {
+      // Drop and recreate to update the policy
+      ops.push({
+        type: 'drop_policy',
+        phase: 12,
+        objectName: `${table}.${policy.name}`,
+        sql: `DROP POLICY IF EXISTS "${policy.name}" ON "${pgSchema}"."${table}"`,
+        destructive: false,
+      });
       ops.push(createPolicyOp(table, policy, pgSchema));
     }
   }
@@ -1177,6 +1188,17 @@ function diffPolicies(
   }
 
   return ops;
+}
+
+function policyChanged(desired: PolicyDef, existing: PolicyDef): boolean {
+  const dPermissive = desired.permissive !== false;
+  const ePermissive = existing.permissive !== false;
+  if (dPermissive !== ePermissive) return true;
+  if ((desired.for || 'ALL') !== (existing.for || 'ALL')) return true;
+  if (desired.to !== existing.to) return true;
+  if ((desired.using || '') !== (existing.using || '')) return true;
+  if ((desired.check || '') !== (existing.check || '')) return true;
+  return false;
 }
 
 function createPolicyOp(table: string, policy: PolicyDef, pgSchema: string): Operation {

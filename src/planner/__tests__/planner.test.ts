@@ -730,6 +730,27 @@ describe('Planner', () => {
       expect(policyOps[0].sql).toContain('FOR SELECT');
     });
 
+    it('creates table with RESTRICTIVE policy', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+        policies: [{
+          name: 'restrict_delete',
+          for: 'DELETE',
+          to: 'app_user',
+          using: 'false',
+          permissive: false,
+        }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const policyOps = findOps(result.operations, 'create_policy');
+      expect(policyOps).toHaveLength(1);
+      expect(policyOps[0].sql).toContain('AS RESTRICTIVE');
+      expect(policyOps[0].sql).toContain('FOR DELETE');
+      expect(policyOps[0].sql).not.toContain('PERMISSIVE');
+    });
+
     it('creates table with grants', () => {
       const desired = emptyDesired();
       desired.tables = [{
@@ -1141,6 +1162,37 @@ describe('Planner', () => {
   });
 
   describe('policy diffing on existing table', () => {
+    it('recreates policy when permissive flag changes', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid' }],
+        policies: [{
+          name: 'user_policy',
+          for: 'SELECT',
+          to: 'public',
+          permissive: false,
+        }],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('users', {
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid' }],
+        policies: [{
+          name: 'user_policy',
+          for: 'SELECT',
+          to: 'public',
+          permissive: true,
+        }],
+      });
+      const result = buildPlan(desired, actual);
+      const dropOps = findOps(result.operations, 'drop_policy');
+      const createOps = findOps(result.operations, 'create_policy');
+      expect(dropOps).toHaveLength(1);
+      expect(createOps).toHaveLength(1);
+      expect(createOps[0].sql).toContain('AS RESTRICTIVE');
+    });
+
     it('blocks drop of policy not in desired', () => {
       const desired = emptyDesired();
       desired.tables = [{

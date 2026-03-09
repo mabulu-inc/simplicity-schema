@@ -490,3 +490,24 @@ describe('getExistingFunctions — options', () => {
     expect(fn!.rows).toBe(10);
   });
 });
+
+describe('policy permissive flag introspection', () => {
+  beforeAll(async () => {
+    await exec(`CREATE TABLE policy_intro_test (id integer PRIMARY KEY, owner text)`);
+    await exec(`ALTER TABLE policy_intro_test ENABLE ROW LEVEL SECURITY`);
+    await exec(`CREATE POLICY "permissive_pol" ON policy_intro_test AS PERMISSIVE FOR SELECT TO public USING (true)`);
+    await exec(`CREATE POLICY "restrictive_pol" ON policy_intro_test AS RESTRICTIVE FOR SELECT TO public USING (true)`);
+  });
+
+  it('reads permissive flag correctly for both permissive and restrictive policies', async () => {
+    const table = await introspectTable(client, 'policy_intro_test', TEST_SCHEMA);
+    expect(table.policies).toBeDefined();
+    expect(table.policies!.length).toBe(2);
+    const permPol = table.policies!.find((p) => p.name === 'permissive_pol');
+    const restrPol = table.policies!.find((p) => p.name === 'restrictive_pol');
+    expect(permPol).toBeDefined();
+    expect(permPol!.permissive).toBe(true);
+    expect(restrPol).toBeDefined();
+    expect(restrPol!.permissive).toBe(false);
+  });
+});
