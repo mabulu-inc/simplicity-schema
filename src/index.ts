@@ -12,7 +12,7 @@ export type { Logger, LoggerOptions } from './core/logger.js';
 export { LogLevel } from './core/logger.js';
 
 // Schema parsing
-export { parseTable, parseEnum, parseFunction, parseView, parseRole, parseExtensions, parseMixin, parseSchemaFile } from './schema/parser.js';
+export { parseTable, parseEnum, parseFunction, parseView, parseRole, parseExtensions, parseMixin, parseSchemaFile, parseTableFile, parseFunctionFile, parseEnumFile, parseViewFile, parseRoleFile } from './schema/parser.js';
 export type { SchemaKind, ParsedSchema } from './schema/parser.js';
 export { loadMixins, applyMixins } from './schema/mixins.js';
 export type { MixinRegistry } from './schema/mixins.js';
@@ -93,12 +93,12 @@ export { generateFromDb, scaffoldInit, scaffoldPre, scaffoldPost, scaffoldMixin 
 export type { GenerateInput, GeneratedFile } from './scaffold/index.js';
 
 // SQL generation
-export { generateSql } from './sql/index.js';
+export { generateSql, generateSqlFile, formatMigrationSql } from './sql/index.js';
 export type { GenerateSqlOptions } from './sql/index.js';
 
 // ERD generation
 export { generateErd } from './erd/index.js';
 
 // CLI pipeline
-export { runPipeline, initProject, getStatus } from './cli/pipeline.js';
-export type { PipelineOptions, StatusResult } from './cli/pipeline.js';
+export { runPipeline, runAll, runPre, runMigrate, runPost, runValidate, runBaseline, initProject, getStatus } from './cli/pipeline.js';
+export type { PipelineOptions, StatusResult, BaselineResult } from './cli/pipeline.js';

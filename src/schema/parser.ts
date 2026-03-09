@@ -450,3 +450,27 @@ export function parseSchemaFile(yamlStr: string): ParsedSchema {
 
   throw new Error('Unrecognized schema file: could not detect schema kind from YAML content');
 }
+
+// File-path-based parsers — read a YAML file from disk and parse it.
+
+import { readFileSync } from 'node:fs';
+
+export function parseTableFile(filePath: string): TableSchema {
+  return parseTable(readFileSync(filePath, 'utf-8'));
+}
+
+export function parseFunctionFile(filePath: string): FunctionSchema {
+  return parseFunction(readFileSync(filePath, 'utf-8'));
+}
+
+export function parseEnumFile(filePath: string): EnumSchema {
+  return parseEnum(readFileSync(filePath, 'utf-8'));
+}
+
+export function parseViewFile(filePath: string): ViewSchema | MaterializedViewSchema {
+  return parseView(readFileSync(filePath, 'utf-8'));
+}
+
+export function parseRoleFile(filePath: string): RoleSchema {
+  return parseRole(readFileSync(filePath, 'utf-8'));
+}

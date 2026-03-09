@@ -4,6 +4,7 @@
  * Renders a migration plan as a standalone .sql file.
  */
 
+import { writeFileSync } from 'node:fs';
 import type { Operation, PlanResult } from '../planner/index.js';
 
 export interface GenerateSqlOptions {
@@ -97,6 +98,22 @@ export function generateSql(plan: PlanResult, options: GenerateSqlOptions = {}):
 
   lines.push('');
   return lines.join('\n');
+}
+
+/**
+ * Write a migration plan as a SQL file to disk.
+ */
+export function generateSqlFile(plan: PlanResult, output: string, options: GenerateSqlOptions = {}): void {
+  const sql = generateSql(plan, options);
+  writeFileSync(output, sql, 'utf-8');
+}
+
+/**
+ * Format an array of operations as a SQL string.
+ */
+export function formatMigrationSql(operations: Operation[]): string {
+  if (operations.length === 0) return '';
+  return operations.map((op) => addSemicolon(op.sql)).join('\n');
 }
 
 function addSemicolon(sql: string): string {

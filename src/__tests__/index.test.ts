@@ -96,4 +96,26 @@ describe('Public API surface', () => {
   it('exports LogLevel enum', () => {
     expect(api.LogLevel).toBeDefined();
   });
+
+  it('exports pipeline convenience functions (PRD §13)', () => {
+    expect(typeof api.runAll).toBe('function');
+    expect(typeof api.runPre).toBe('function');
+    expect(typeof api.runMigrate).toBe('function');
+    expect(typeof api.runPost).toBe('function');
+    expect(typeof api.runValidate).toBe('function');
+    expect(typeof api.runBaseline).toBe('function');
+  });
+
+  it('exports file-path-based parsers (PRD §13)', () => {
+    expect(typeof api.parseTableFile).toBe('function');
+    expect(typeof api.parseFunctionFile).toBe('function');
+    expect(typeof api.parseEnumFile).toBe('function');
+    expect(typeof api.parseViewFile).toBe('function');
+    expect(typeof api.parseRoleFile).toBe('function');
+  });
+
+  it('exports SQL generation helpers (PRD §13)', () => {
+    expect(typeof api.generateSqlFile).toBe('function');
+    expect(typeof api.formatMigrationSql).toBe('function');
+  });
 });

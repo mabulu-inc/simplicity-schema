@@ -318,6 +318,56 @@ export interface StatusResult {
   history: { filePath: string; phase: string; appliedAt: Date }[];
 }
 
+/**
+ * Pipeline convenience: run all phases.
+ */
+export async function runAll(
+  config: SimplicitySchemaConfig,
+  logger: Logger,
+): Promise<ExecuteResult> {
+  return runPipeline(config, logger);
+}
+
+/**
+ * Pipeline convenience: run only pre scripts.
+ */
+export async function runPre(
+  config: SimplicitySchemaConfig,
+  logger: Logger,
+): Promise<ExecuteResult> {
+  return runPipeline(config, logger, { phaseFilter: 'pre' });
+}
+
+/**
+ * Pipeline convenience: run only migrate phase.
+ */
+export async function runMigrate(
+  config: SimplicitySchemaConfig,
+  logger: Logger,
+): Promise<ExecuteResult> {
+  return runPipeline(config, logger, { phaseFilter: 'migrate' });
+}
+
+/**
+ * Pipeline convenience: run only post scripts.
+ */
+export async function runPost(
+  config: SimplicitySchemaConfig,
+  logger: Logger,
+): Promise<ExecuteResult> {
+  return runPipeline(config, logger, { phaseFilter: 'post' });
+}
+
+/**
+ * Pipeline convenience: validate mode (rolled-back transaction).
+ */
+export async function runValidate(
+  config: SimplicitySchemaConfig,
+  logger: Logger,
+): Promise<ExecuteResult> {
+  return runPipeline(config, logger, { validateOnly: true });
+}
+
 export async function getStatus(
   config: SimplicitySchemaConfig,
   logger: Logger,
