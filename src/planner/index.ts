@@ -73,6 +73,10 @@ export type OperationType =
   | 'alter_role'
   | 'grant_table'
   | 'revoke_table'
+  | 'grant_function'
+  | 'revoke_function'
+  | 'grant_sequence'
+  | 'revoke_sequence'
   // Other
   | 'set_comment'
   | 'add_seed';
@@ -398,6 +402,21 @@ function diffFunctions(
         destructive: false,
       });
     }
+
+    // Function grants (phase 13)
+    if (fn.grants) {
+      const argTypes = fn.args ? fn.args.map((a) => a.type).join(', ') : '';
+      for (const grant of fn.grants) {
+        const privileges = grant.privileges.join(', ');
+        ops.push({
+          type: 'grant_function',
+          phase: 13,
+          objectName: `${fn.name}.${grant.to}`,
+          sql: `GRANT ${privileges} ON FUNCTION "${pgSchema}"."${fn.name}"(${argTypes}) TO "${grant.to}"`,
+          destructive: false,
+        });
+      }
+    }
   }
 
   return ops;
@@ -542,6 +561,8 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     for (const grant of table.grants) {
       ops.push(createGrantOp(table.table, grant, pgSchema));
     }
+    // Auto-generate sequence grants for serial/bigserial columns
+    ops.push(...createSequenceGrantOps(table.table, table.columns, table.grants, pgSchema));
   }
 
   // Comments (phase 14)
@@ -668,6 +689,8 @@ function alterTableOps(desired: TableSchema, existing: TableSchema, pgSchema: st
     for (const grant of desired.grants) {
       ops.push(createGrantOp(desired.table, grant, pgSchema));
     }
+    // Auto-generate sequence grants for serial/bigserial columns
+    ops.push(...createSequenceGrantOps(desired.table, desired.columns, desired.grants, pgSchema));
   }
 
   // Comment
@@ -1075,6 +1098,41 @@ function createGrantOp(table: string, grant: GrantDef, pgSchema: string): Operat
     sql,
     destructive: false,
   };
+}
+
+// ─── Sequence Grants (auto-generated for serial/bigserial columns) ──
+
+const SERIAL_TYPES = new Set(['serial', 'bigserial', 'smallserial']);
+const SEQUENCE_NEEDING_PRIVILEGES = new Set(['INSERT', 'UPDATE', 'ALL', 'ALL PRIVILEGES']);
+
+function createSequenceGrantOps(
+  table: string,
+  columns: ColumnDef[],
+  grants: GrantDef[],
+  pgSchema: string,
+): Operation[] {
+  const ops: Operation[] = [];
+  const serialCols = columns.filter((c) => SERIAL_TYPES.has(c.type.toLowerCase()));
+  if (serialCols.length === 0) return ops;
+
+  for (const grant of grants) {
+    // Only generate sequence grants for roles that need write access
+    const needsSequence = grant.privileges.some((p) => SEQUENCE_NEEDING_PRIVILEGES.has(p.toUpperCase()));
+    if (!needsSequence) continue;
+
+    for (const col of serialCols) {
+      const seqName = `${table}_${col.name}_seq`;
+      ops.push({
+        type: 'grant_sequence',
+        phase: 13,
+        objectName: `${seqName}.${grant.to}`,
+        sql: `GRANT USAGE, SELECT ON SEQUENCE "${pgSchema}"."${seqName}" TO "${grant.to}"`,
+        destructive: false,
+      });
+    }
+  }
+
+  return ops;
 }
 
 // ─── Views ─────────────────────────────────────────────────────

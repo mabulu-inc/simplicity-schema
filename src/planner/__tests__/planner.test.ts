@@ -1038,6 +1038,145 @@ describe('Planner', () => {
     });
   });
 
+  describe('function grants', () => {
+    it('produces grant_function operations from function grants', () => {
+      const desired = emptyDesired();
+      desired.functions = [{
+        name: 'get_user',
+        language: 'plpgsql',
+        returns: 'json',
+        body: 'BEGIN RETURN NULL; END;',
+        security: 'invoker',
+        volatility: 'stable',
+        grants: [{ to: 'app_readonly', privileges: ['EXECUTE'] }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_function');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('GRANT EXECUTE');
+      expect(ops[0].sql).toContain('"get_user"');
+      expect(ops[0].sql).toContain('"app_readonly"');
+      expect(ops[0].phase).toBe(13);
+    });
+
+    it('produces grant_function with args in signature', () => {
+      const desired = emptyDesired();
+      desired.functions = [{
+        name: 'get_user_by_id',
+        language: 'plpgsql',
+        returns: 'json',
+        args: [{ name: 'user_id', type: 'uuid' }],
+        body: 'BEGIN RETURN NULL; END;',
+        grants: [{ to: 'app_user', privileges: ['EXECUTE'] }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_function');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('"get_user_by_id"(uuid)');
+    });
+
+    it('produces multiple grant_function operations for multiple grantees', () => {
+      const desired = emptyDesired();
+      desired.functions = [{
+        name: 'helper_fn',
+        language: 'plpgsql',
+        returns: 'void',
+        body: 'BEGIN END;',
+        grants: [
+          { to: 'role_a', privileges: ['EXECUTE'] },
+          { to: 'role_b', privileges: ['EXECUTE'] },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_function');
+      expect(ops).toHaveLength(2);
+    });
+  });
+
+  describe('sequence grants', () => {
+    it('auto-generates grant_sequence for tables with serial columns and grants', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'items',
+        columns: [
+          { name: 'id', type: 'serial', primary_key: true },
+          { name: 'name', type: 'text' },
+        ],
+        grants: [{ to: 'app_user', privileges: ['SELECT', 'INSERT'] }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_sequence');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('GRANT USAGE, SELECT');
+      expect(ops[0].sql).toContain('_id_seq');
+      expect(ops[0].sql).toContain('"app_user"');
+      expect(ops[0].phase).toBe(13);
+    });
+
+    it('auto-generates grant_sequence for bigserial columns', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'events',
+        columns: [
+          { name: 'id', type: 'bigserial', primary_key: true },
+          { name: 'data', type: 'jsonb' },
+        ],
+        grants: [{ to: 'writer', privileges: ['INSERT'] }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_sequence');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('events_id_seq');
+    });
+
+    it('does not generate grant_sequence when table has no serial columns', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+        ],
+        grants: [{ to: 'reader', privileges: ['SELECT'] }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_sequence');
+      expect(ops).toHaveLength(0);
+    });
+
+    it('does not generate grant_sequence when table has no grants', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'items',
+        columns: [
+          { name: 'id', type: 'serial', primary_key: true },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_sequence');
+      expect(ops).toHaveLength(0);
+    });
+
+    it('generates grant_sequence for each grantee with INSERT/UPDATE/ALL privileges', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'items',
+        columns: [
+          { name: 'id', type: 'serial', primary_key: true },
+        ],
+        grants: [
+          { to: 'writer', privileges: ['INSERT', 'UPDATE'] },
+          { to: 'reader', privileges: ['SELECT'] },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'grant_sequence');
+      // Only the writer needs sequence access (INSERT/UPDATE use sequences), reader doesn't
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('"writer"');
+    });
+  });
+
   describe('CONCURRENTLY indexes', () => {
     it('generates CREATE INDEX CONCURRENTLY for new indexes', () => {
       const desired = emptyDesired();

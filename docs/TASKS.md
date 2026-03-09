@@ -171,7 +171,7 @@
 ## Milestone 9: Coverage Gaps — Grants, Memberships & Operations
 
 ### T-025: Grant/revoke for sequences and functions
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Add planner tests (and implement if missing) for `grant_sequence`, `revoke_sequence`, `grant_function`, `revoke_function` operations (PRD §7.3). Function grants defined in function YAML (PRD §4.3) should produce `grant_function` operations. Sequence grants should be auto-generated for tables with serial/identity columns. Add executor integration tests verifying the SQL executes correctly.
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`

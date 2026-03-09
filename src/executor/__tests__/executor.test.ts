@@ -448,6 +448,111 @@ describe('Executor', () => {
     });
   });
 
+  describe('function and sequence grants', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        // Create a role for grant testing
+        await client.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'test_grant_role') THEN CREATE ROLE test_grant_role NOLOGIN; END IF; END $$`);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes grant_function operation successfully', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_function',
+          phase: 5,
+          objectName: 'my_func',
+          sql: `CREATE OR REPLACE FUNCTION "${testSchema}"."my_func"() RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql VOLATILE SECURITY INVOKER`,
+          destructive: false,
+        },
+        {
+          type: 'grant_function',
+          phase: 13,
+          objectName: 'my_func.test_grant_role',
+          sql: `GRANT EXECUTE ON FUNCTION "${testSchema}"."my_func"() TO "test_grant_role"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(2);
+
+      // Verify the grant exists
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT has_function_privilege('test_grant_role', '"${testSchema}"."my_func"()', 'EXECUTE') AS has_priv`,
+        );
+        expect(res.rows[0].has_priv).toBe(true);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('executes grant_sequence operation successfully', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'items',
+          sql: `CREATE TABLE "${testSchema}"."items" ("id" serial PRIMARY KEY, "name" text)`,
+          destructive: false,
+        },
+        {
+          type: 'grant_sequence',
+          phase: 13,
+          objectName: 'items_id_seq.test_grant_role',
+          sql: `GRANT USAGE, SELECT ON SEQUENCE "${testSchema}"."items_id_seq" TO "test_grant_role"`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(2);
+
+      // Verify the sequence grant exists
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT has_sequence_privilege('test_grant_role', '"${testSchema}"."items_id_seq"', 'USAGE') AS has_priv`,
+        );
+        expect(res.rows[0].has_priv).toBe(true);
+      } finally {
+        client.release();
+      }
+    });
+  });
+
   describe('pre/post scripts', () => {
     let testSchema: string;
 
