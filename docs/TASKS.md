@@ -49,7 +49,7 @@
 - **Produces**: `src/schema/parser.ts`, tests
 
 ### T-007: Mixin system
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-006
 - **Description**: Implement mixin loading — parse mixin YAML files, merge mixin columns/indexes/triggers/policies/grants into table schemas that reference them.
 - **Produces**: `src/schema/mixins.ts`, tests

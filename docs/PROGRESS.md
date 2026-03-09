@@ -4,8 +4,8 @@
 
 <!-- Updated by each Ralph Loop iteration. Read this FIRST. -->
 
-Last completed task: T-006 (YAML parser)
-Next eligible task: T-007 (Mixin system)
+Last completed task: T-007 (Mixin system)
+Next eligible task: T-008 (Database introspection)
 
 ## Completed Tasks
 
@@ -16,3 +16,4 @@ Next eligible task: T-007 (Mixin system)
 - **T-004**: Logger — Structured leveled logger (debug/info/warn/error) with colored output, verbose/quiet/json modes, configurable output streams. 15 tests passing.
 - **T-005**: Schema type definitions — All YAML schema types defined in `src/schema/types.ts`: TableSchema, ColumnDef, IndexDef, CheckDef, UniqueConstraintDef, TriggerDef, PolicyDef, FunctionSchema, FunctionArg, EnumSchema, ViewSchema, MaterializedViewSchema, RoleSchema, ExtensionsSchema, MixinSchema, GrantDef, FunctionGrantDef, PrecheckDef, and supporting types. 77 tests passing (no regressions).
 - **T-006**: YAML parser — `src/schema/parser.ts` with parsers for all schema kinds (table, enum, function, view, materialized view, role, extensions, mixin). Validates required fields, validates enum values (timing, method, security, etc.), applies defaults. `parseSchemaFile` auto-detects kind from YAML content. 38 new tests, 115 total passing.
+- **T-007**: Mixin system — `src/schema/mixins.ts` with `loadMixins` (builds name→MixinSchema registry, rejects duplicates) and `applyMixins` (merges columns/indexes/checks/triggers/policies/grants into table schemas, skips duplicate columns, substitutes `{table}` placeholder in all string fields). Immutable — does not mutate inputs. 19 new tests, 134 total passing.
