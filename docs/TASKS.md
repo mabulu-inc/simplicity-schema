@@ -163,7 +163,7 @@
 - **Produces**: Tests in `planner.test.ts`, `executor.test.ts`
 
 ### T-024: Enum value removal blocking
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Add planner tests verifying that removing an enum value is blocked by default (listed in PRD §8.1 destructive operations) and allowed with `--allow-destructive`. If the planner doesn't implement this, add the logic.
 - **Produces**: Tests in `planner.test.ts`
