@@ -1079,6 +1079,168 @@ describe('Executor', () => {
       }
     });
 
+    it('should create index with gin method', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'gin_table',
+          sql: `CREATE TABLE "${testSchema}"."gin_table" ("id" uuid PRIMARY KEY, "tags" text[] NOT NULL)`,
+          destructive: false,
+        },
+        {
+          type: 'add_index',
+          phase: 7,
+          objectName: 'idx_gin_table_tags',
+          sql: `CREATE INDEX CONCURRENTLY "idx_gin_table_tags" ON "${testSchema}"."gin_table" USING gin ("tags")`,
+          destructive: false,
+          concurrent: true,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result.executed).toBe(2);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'idx_gin_table_tags'`,
+          [testSchema],
+        );
+        expect(res.rows.length).toBe(1);
+        expect(res.rows[0].indexdef).toContain('USING gin');
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should create partial index with WHERE clause', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'partial_idx_table',
+          sql: `CREATE TABLE "${testSchema}"."partial_idx_table" ("id" uuid PRIMARY KEY, "email" text NOT NULL, "active" boolean NOT NULL DEFAULT true)`,
+          destructive: false,
+        },
+        {
+          type: 'add_index',
+          phase: 7,
+          objectName: 'idx_partial_email',
+          sql: `CREATE INDEX CONCURRENTLY "idx_partial_email" ON "${testSchema}"."partial_idx_table" USING btree ("email") WHERE active = true`,
+          destructive: false,
+          concurrent: true,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result.executed).toBe(2);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'idx_partial_email'`,
+          [testSchema],
+        );
+        expect(res.rows.length).toBe(1);
+        expect(res.rows[0].indexdef).toContain('WHERE');
+        expect(res.rows[0].indexdef).toContain('active');
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should create covering index with INCLUDE', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'cover_idx_table',
+          sql: `CREATE TABLE "${testSchema}"."cover_idx_table" ("id" uuid PRIMARY KEY, "email" text NOT NULL, "name" text)`,
+          destructive: false,
+        },
+        {
+          type: 'add_index',
+          phase: 7,
+          objectName: 'idx_cover_email',
+          sql: `CREATE INDEX CONCURRENTLY "idx_cover_email" ON "${testSchema}"."cover_idx_table" USING btree ("email") INCLUDE ("name")`,
+          destructive: false,
+          concurrent: true,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result.executed).toBe(2);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'idx_cover_email'`,
+          [testSchema],
+        );
+        expect(res.rows.length).toBe(1);
+        expect(res.rows[0].indexdef).toContain('INCLUDE');
+        expect(res.rows[0].indexdef).toContain('name');
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should create index with opclass', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'opclass_table',
+          sql: `CREATE TABLE "${testSchema}"."opclass_table" ("id" uuid PRIMARY KEY, "email" text NOT NULL)`,
+          destructive: false,
+        },
+        {
+          type: 'add_index',
+          phase: 7,
+          objectName: 'idx_opclass_email',
+          sql: `CREATE INDEX CONCURRENTLY "idx_opclass_email" ON "${testSchema}"."opclass_table" USING btree ("email" text_pattern_ops)`,
+          destructive: false,
+          concurrent: true,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result.executed).toBe(2);
+
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'idx_opclass_email'`,
+          [testSchema],
+        );
+        expect(res.rows.length).toBe(1);
+        expect(res.rows[0].indexdef).toContain('text_pattern_ops');
+      } finally {
+        client.release();
+      }
+    });
+
     it('should not run post-scripts in validate mode', async () => {
       const fs = await import('node:fs/promises');
       const os = await import('node:os');

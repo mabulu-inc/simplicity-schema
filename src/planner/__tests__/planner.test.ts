@@ -1498,6 +1498,148 @@ describe('Planner', () => {
     });
   });
 
+  describe('index options', () => {
+    it('generates index with gin method', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'documents',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'tags', type: 'text[]' },
+        ],
+        indexes: [{ name: 'idx_documents_tags', columns: ['tags'], method: 'gin' }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('USING gin');
+    });
+
+    it('generates index with gist method', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'locations',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'geom', type: 'geometry' },
+        ],
+        indexes: [{ name: 'idx_locations_geom', columns: ['geom'], method: 'gist' }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('USING gist');
+    });
+
+    it('generates index with hash method', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+        ],
+        indexes: [{ name: 'idx_users_email_hash', columns: ['email'], method: 'hash' }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('USING hash');
+    });
+
+    it('generates index with brin method', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'events',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'created_at', type: 'timestamptz' },
+        ],
+        indexes: [{ name: 'idx_events_created_at', columns: ['created_at'], method: 'brin' }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('USING brin');
+    });
+
+    it('generates partial index with WHERE clause', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+          { name: 'active', type: 'boolean' },
+        ],
+        indexes: [{ name: 'idx_users_email_active', columns: ['email'], where: 'active = true' }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('WHERE active = true');
+    });
+
+    it('generates covering index with INCLUDE', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+          { name: 'name', type: 'text' },
+        ],
+        indexes: [{ name: 'idx_users_email_incl_name', columns: ['email'], include: ['name'] }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('INCLUDE ("name")');
+    });
+
+    it('generates index with opclass', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+        ],
+        indexes: [{ name: 'idx_users_email_pattern', columns: ['email'], opclass: 'text_pattern_ops' }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('"email" text_pattern_ops');
+    });
+
+    it('generates index with all options combined', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'users',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'email', type: 'text' },
+          { name: 'name', type: 'text' },
+          { name: 'active', type: 'boolean' },
+        ],
+        indexes: [{
+          name: 'idx_users_complex',
+          columns: ['email'],
+          unique: true,
+          include: ['name'],
+          where: 'active = true',
+        }],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'add_index');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('CREATE UNIQUE INDEX CONCURRENTLY');
+      expect(ops[0].sql).toContain('INCLUDE ("name")');
+      expect(ops[0].sql).toContain('WHERE active = true');
+    });
+  });
+
   describe('extension schema_grants', () => {
     it('produces grant_schema operations from schema_grants', () => {
       const desired = emptyDesired();

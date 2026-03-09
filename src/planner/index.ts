@@ -945,7 +945,7 @@ function createIndexOp(table: string, idx: IndexDef, pgSchema: string): Operatio
   const name = idx.name || `idx_${table}_${idx.columns.join('_')}`;
   const method = idx.method || 'btree';
   const unique = idx.unique ? 'UNIQUE ' : '';
-  const cols = idx.columns.map((c) => `"${c}"`).join(', ');
+  const cols = idx.columns.map((c) => idx.opclass ? `"${c}" ${idx.opclass}` : `"${c}"`).join(', ');
   let sql = `CREATE ${unique}INDEX CONCURRENTLY "${name}" ON "${pgSchema}"."${table}" USING ${method} (${cols})`;
   if (idx.include && idx.include.length > 0) {
     sql += ` INCLUDE (${idx.include.map((c) => `"${c}"`).join(', ')})`;
