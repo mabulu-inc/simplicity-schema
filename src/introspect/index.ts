@@ -298,6 +298,8 @@ async function getColumns(client: Client, table: string, schema: string): Promis
        c.numeric_scale AS num_scale,
        c.is_nullable = 'YES' AS nullable,
        c.column_default AS "default",
+       c.is_generated = 'ALWAYS' AS is_generated,
+       c.generation_expression,
        col_description(
          (SELECT oid FROM pg_catalog.pg_class WHERE relname = $1 AND relnamespace = (SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = $2)),
          c.ordinal_position
@@ -328,6 +330,7 @@ async function getColumns(client: Client, table: string, schema: string): Promis
     if (r.is_primary_key) col.primary_key = true;
     if (r.default !== null && r.default !== undefined) col.default = r.default as string;
     if (r.comment) col.comment = r.comment as string;
+    if (r.is_generated && r.generation_expression) col.generated = r.generation_expression as string;
 
     return col;
   });

@@ -297,6 +297,21 @@ function driftColumns(table: string, desired: ColumnDef[], actual: ColumnDef[]):
           detail: `default: expected ${dDefault ?? '(none)'}, actual ${aDefault ?? '(none)'}`,
         });
       }
+      // Generated column expression
+      const dGenerated = dc.generated ?? undefined;
+      const aGenerated = ac.generated ?? undefined;
+      if ((dGenerated || '') !== (aGenerated || '')) {
+        items.push({
+          type: 'column',
+          object: `${table}.${dc.name}`,
+          status: dGenerated && !aGenerated ? 'missing_in_db'
+            : !dGenerated && aGenerated ? 'missing_in_yaml'
+            : 'different',
+          expected: dGenerated ?? '(none)',
+          actual: aGenerated ?? '(none)',
+          detail: `generated: expected ${dGenerated ?? '(none)'}, actual ${aGenerated ?? '(none)'}`,
+        });
+      }
     }
   }
 

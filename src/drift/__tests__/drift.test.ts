@@ -1095,4 +1095,106 @@ describe('detectDrift', () => {
     const colDrifts = report.items.filter((i) => i.type === 'column');
     expect(colDrifts).toEqual([]);
   });
+
+  // ─── Generated Columns ──────────────────────────────────────────
+
+  it('reports generated column missing in DB', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric', generated: 'price * quantity' },
+      ],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('orders', {
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric' },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    const genDrift = report.items.find(
+      (i) => i.type === 'column' && i.object === 'orders.total' && i.detail?.includes('generated'),
+    );
+    expect(genDrift).toBeDefined();
+    expect(genDrift!.expected).toBe('price * quantity');
+    expect(genDrift!.actual).toBe('(none)');
+  });
+
+  it('reports generated column expression differs', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric', generated: 'price * quantity' },
+      ],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('orders', {
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric', generated: 'price + quantity' },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    const genDrift = report.items.find(
+      (i) => i.type === 'column' && i.object === 'orders.total' && i.detail?.includes('generated'),
+    );
+    expect(genDrift).toBeDefined();
+    expect(genDrift!.status).toBe('different');
+  });
+
+  it('reports generated column in DB but not in YAML', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric' },
+      ],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('orders', {
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric', generated: 'price * quantity' },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    const genDrift = report.items.find(
+      (i) => i.type === 'column' && i.object === 'orders.total' && i.detail?.includes('generated'),
+    );
+    expect(genDrift).toBeDefined();
+    expect(genDrift!.expected).toBe('(none)');
+  });
+
+  it('no drift when generated expressions match', () => {
+    const desired = emptyDesired();
+    desired.tables = [{
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric', generated: 'price * quantity' },
+      ],
+    }];
+    const actual = emptyActual();
+    actual.tables.set('orders', {
+      table: 'orders',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'total', type: 'numeric', generated: 'price * quantity' },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    const genDrift = report.items.filter(
+      (i) => i.type === 'column' && i.object === 'orders.total' && i.detail?.includes('generated'),
+    );
+    expect(genDrift).toHaveLength(0);
+  });
 });

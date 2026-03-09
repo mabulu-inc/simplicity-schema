@@ -1437,5 +1437,40 @@ describe('Executor', () => {
 
       expect(result.executed).toBe(3);
     });
+
+    it('should create a table with a generated column', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'line_items',
+          sql: `CREATE TABLE "${testSchema}"."line_items" (
+  "id" serial PRIMARY KEY,
+  "price" numeric NOT NULL,
+  "quantity" integer NOT NULL,
+  "total" numeric GENERATED ALWAYS AS (price * quantity) STORED
+)`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result.executed).toBe(1);
+
+      // Insert data and verify generated column computes correctly
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`INSERT INTO "${testSchema}"."line_items" (price, quantity) VALUES (10.50, 3)`);
+        const res = await client.query(`SELECT total FROM "${testSchema}"."line_items" WHERE id = 1`);
+        expect(Number(res.rows[0].total)).toBe(31.5);
+      } finally {
+        client.release();
+      }
+    });
   });
 });

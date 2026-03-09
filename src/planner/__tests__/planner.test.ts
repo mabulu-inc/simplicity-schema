@@ -1534,4 +1534,49 @@ describe('Planner', () => {
       expect(createOp!.phase).toBeGreaterThan(0);
     });
   });
+
+  describe('generated columns', () => {
+    it('includes GENERATED ALWAYS AS ... STORED in CREATE TABLE SQL', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'price', type: 'numeric' },
+          { name: 'quantity', type: 'integer' },
+          { name: 'total', type: 'numeric', generated: 'price * quantity' },
+        ],
+      }];
+      const result = buildPlan(desired, emptyActual());
+      const createOp = findOps(result.operations, 'create_table')[0];
+      expect(createOp).toBeDefined();
+      expect(createOp.sql).toContain('GENERATED ALWAYS AS (price * quantity) STORED');
+    });
+
+    it('includes GENERATED ALWAYS AS ... STORED in ADD COLUMN SQL', () => {
+      const desired = emptyDesired();
+      desired.tables = [{
+        table: 'orders',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'price', type: 'numeric' },
+          { name: 'quantity', type: 'integer' },
+          { name: 'total', type: 'numeric', generated: 'price * quantity' },
+        ],
+      }];
+      const actual = emptyActual();
+      actual.tables.set('orders', {
+        table: 'orders',
+        columns: [
+          { name: 'id', type: 'uuid', primary_key: true },
+          { name: 'price', type: 'numeric' },
+          { name: 'quantity', type: 'integer' },
+        ],
+      });
+      const result = buildPlan(desired, actual);
+      const addOp = findOps(result.operations, 'add_column')[0];
+      expect(addOp).toBeDefined();
+      expect(addOp.sql).toContain('GENERATED ALWAYS AS (price * quantity) STORED');
+    });
+  });
 });

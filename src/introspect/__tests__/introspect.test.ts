@@ -304,3 +304,30 @@ describe('getExistingRoles', () => {
     expect(role!.login).toBe(false);
   });
 });
+
+describe('generated columns', () => {
+  beforeAll(async () => {
+    await exec(`CREATE TABLE gen_test (
+      id serial PRIMARY KEY,
+      price numeric NOT NULL,
+      quantity integer NOT NULL,
+      total numeric GENERATED ALWAYS AS (price * quantity) STORED
+    )`);
+  });
+
+  it('introspects generated column expression', async () => {
+    const table = await introspectTable(client, 'gen_test', TEST_SCHEMA);
+    const totalCol = table.columns.find((c) => c.name === 'total');
+    expect(totalCol).toBeDefined();
+    expect(totalCol!.generated).toBeDefined();
+    expect(totalCol!.generated).toContain('price');
+    expect(totalCol!.generated).toContain('quantity');
+  });
+
+  it('non-generated columns have no generated field', async () => {
+    const table = await introspectTable(client, 'gen_test', TEST_SCHEMA);
+    const priceCol = table.columns.find((c) => c.name === 'price');
+    expect(priceCol).toBeDefined();
+    expect(priceCol!.generated).toBeUndefined();
+  });
+});
