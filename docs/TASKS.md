@@ -99,7 +99,7 @@
 - **Produces**: `src/scaffold/index.ts`, tests
 
 ### T-014: Rollback
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-010
 - **Description**: Implement snapshot capture before each migration and reverse operation computation. Support `down` command to rollback to a previous snapshot.
 - **Produces**: `src/rollback/index.ts`, tests

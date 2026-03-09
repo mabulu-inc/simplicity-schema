@@ -4,8 +4,8 @@
 
 <!-- Updated by each Ralph Loop iteration. Read this FIRST. -->
 
-Last completed task: T-013 (Scaffold / generate)
-Next eligible task: T-014 (Rollback)
+Last completed task: T-014 (Rollback)
+Next eligible task: T-015 (Expand/contract)
 
 ## Completed Tasks
 
@@ -23,3 +23,4 @@ Next eligible task: T-014 (Rollback)
 - **T-011**: CLI entry point — `src/cli/index.ts` with argument parsing (`src/cli/args.ts`), help text (`src/cli/help.ts`), and pipeline orchestration (`src/cli/pipeline.ts`). Commands: run (full/pre/migrate/post), plan (dry-run), validate (rollback transaction), status (applied files + pending changes), init (create directory structure), help, version. Full pipeline wiring: discover → parse → expand mixins → introspect DB → plan → execute. 35 new tests, 246 total passing.
 - **T-012**: Drift detection — `src/drift/index.ts` with `detectDrift` function. Structured `DriftReport` covering all object types. 31 tests, 277 total passing.
 - **T-013**: Scaffold / generate — `src/scaffold/index.ts` with `generateFromDb` (introspects DB objects and produces YAML files, one per table/enum/function/view/role), `scaffoldInit` (creates standard directory structure), `scaffoldPre`/`scaffoldPost` (timestamped SQL templates), `scaffoldMixin` (YAML mixin template). Writes files to disk when outputDir provided. 15 new tests, 292 total passing.
+- **T-014**: Rollback — `src/rollback/index.ts` with `ensureSnapshotsTable` (creates `_simplicity.snapshots`), `saveSnapshot`/`getLatestSnapshot`/`listSnapshots`/`deleteSnapshot` (snapshot CRUD), `computeRollback` (computes reverse operations from a snapshot — handles create_table→DROP, add_column→DROP COLUMN, create_enum→DROP TYPE, add_index→DROP INDEX, create_function→DROP FUNCTION, create/drop trigger/policy/view/materialized_view, enable_rls→DISABLE, constraints, grants, extensions, roles; skips irreversible ops like alter_column/add_enum_value), `runDown` (loads latest snapshot, executes reverse operations in transaction with advisory locking, deletes snapshot on success). 29 new tests, 321 total passing.
