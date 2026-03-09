@@ -1113,4 +1113,165 @@ describe('Executor', () => {
       await fs.rm(tmpDir, { recursive: true });
     });
   });
+
+  describe('precheck execution', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+        await client.query(`CREATE TABLE "${testSchema}"."users" ("id" serial PRIMARY KEY, "email" text NOT NULL)`);
+        await client.query(`INSERT INTO "${testSchema}"."users" (email) VALUES ('a@b.com'), ('c@d.com')`);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should pass when precheck query returns truthy value', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'run_precheck',
+          phase: 0,
+          objectName: 'users.check_has_rows',
+          sql: `SELECT count(*) > 0 FROM "${testSchema}"."users"`,
+          destructive: false,
+          precheckMessage: 'No users exist',
+        },
+        {
+          type: 'add_column',
+          phase: 6,
+          objectName: 'users.status',
+          sql: `ALTER TABLE "${testSchema}"."users" ADD COLUMN "status" text DEFAULT 'active'`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      // Precheck + add_column both executed
+      expect(result.executed).toBe(2);
+
+      // Verify column was added
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT column_name FROM information_schema.columns
+           WHERE table_schema = $1 AND table_name = 'users' AND column_name = 'status'`,
+          [testSchema],
+        );
+        expect(res.rows.length).toBe(1);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should abort migration when precheck query returns falsy value', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'run_precheck',
+          phase: 0,
+          objectName: 'users.no_orphans',
+          sql: `SELECT count(*) = 0 FROM "${testSchema}"."users" WHERE email = 'a@b.com'`,
+          destructive: false,
+          precheckMessage: 'Orphaned rows exist — clean up before migration',
+        },
+        {
+          type: 'add_column',
+          phase: 6,
+          objectName: 'users.new_col',
+          sql: `ALTER TABLE "${testSchema}"."users" ADD COLUMN "new_col" text`,
+          destructive: false,
+        },
+      ];
+
+      await expect(
+        execute({ connectionString: DATABASE_URL, operations: ops, logger }),
+      ).rejects.toThrow('Precheck failed: Orphaned rows exist — clean up before migration');
+
+      // The add_column should NOT have been applied
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT column_name FROM information_schema.columns
+           WHERE table_schema = $1 AND table_name = 'users' AND column_name = 'new_col'`,
+          [testSchema],
+        );
+        expect(res.rows.length).toBe(0);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should abort when precheck returns null', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'run_precheck',
+          phase: 0,
+          objectName: 'users.null_check',
+          sql: `SELECT null::boolean`,
+          destructive: false,
+          precheckMessage: 'Check returned null',
+        },
+      ];
+
+      await expect(
+        execute({ connectionString: DATABASE_URL, operations: ops, logger }),
+      ).rejects.toThrow('Precheck failed: Check returned null');
+    });
+
+    it('should pass multiple prechecks when all return truthy', async () => {
+      const ops: Operation[] = [
+        {
+          type: 'run_precheck',
+          phase: 0,
+          objectName: 'users.check1',
+          sql: `SELECT count(*) > 0 FROM "${testSchema}"."users"`,
+          destructive: false,
+          precheckMessage: 'Check 1 failed',
+        },
+        {
+          type: 'run_precheck',
+          phase: 0,
+          objectName: 'users.check2',
+          sql: `SELECT true`,
+          destructive: false,
+          precheckMessage: 'Check 2 failed',
+        },
+        {
+          type: 'create_table',
+          phase: 6,
+          objectName: 'orders',
+          sql: `CREATE TABLE "${testSchema}"."orders" ("id" serial PRIMARY KEY)`,
+          destructive: false,
+        },
+      ];
+
+      const result = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+
+      expect(result.executed).toBe(3);
+    });
+  });
 });

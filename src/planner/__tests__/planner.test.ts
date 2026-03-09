@@ -1453,4 +1453,85 @@ describe('Planner', () => {
       expect(ops).toHaveLength(0);
     });
   });
+
+  describe('prechecks', () => {
+    it('produces run_precheck operations for new table with prechecks', () => {
+      const desired = emptyDesired();
+      desired.tables = [
+        {
+          table: 'users',
+          columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+          prechecks: [
+            {
+              name: 'no_orphans',
+              query: "SELECT count(*) = 0 FROM orders WHERE user_id NOT IN (SELECT id FROM users)",
+              message: 'Orphaned orders exist — fix before migrating',
+            },
+          ],
+        },
+      ];
+
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'run_precheck');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].objectName).toBe('users.no_orphans');
+      expect(ops[0].sql).toBe("SELECT count(*) = 0 FROM orders WHERE user_id NOT IN (SELECT id FROM users)");
+      expect(ops[0].precheckMessage).toBe('Orphaned orders exist — fix before migrating');
+      expect(ops[0].phase).toBe(0);
+    });
+
+    it('produces run_precheck operations for existing table being altered', () => {
+      const desired = emptyDesired();
+      desired.tables = [
+        {
+          table: 'users',
+          columns: [
+            { name: 'id', type: 'uuid', primary_key: true },
+            { name: 'email', type: 'text' },
+          ],
+          prechecks: [
+            {
+              name: 'validate_emails',
+              query: "SELECT count(*) = 0 FROM users WHERE email IS NULL",
+              message: 'Null emails exist',
+            },
+          ],
+        },
+      ];
+
+      const actual = emptyActual();
+      actual.tables.set('users', {
+        table: 'users',
+        columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+      });
+
+      const result = buildPlan(desired, actual);
+      const ops = findOps(result.operations, 'run_precheck');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].objectName).toBe('users.validate_emails');
+      expect(ops[0].phase).toBe(0);
+    });
+
+    it('prechecks run before other operations (phase 0)', () => {
+      const desired = emptyDesired();
+      desired.tables = [
+        {
+          table: 'users',
+          columns: [{ name: 'id', type: 'uuid', primary_key: true }],
+          prechecks: [
+            { name: 'check1', query: 'SELECT true', message: 'fail' },
+          ],
+        },
+      ];
+
+      const result = buildPlan(desired, emptyActual());
+      // The first operation should be the precheck
+      expect(result.operations[0].type).toBe('run_precheck');
+      expect(result.operations[0].phase).toBe(0);
+      // create_table should come after
+      const createOp = result.operations.find((o) => o.type === 'create_table');
+      expect(createOp).toBeDefined();
+      expect(createOp!.phase).toBeGreaterThan(0);
+    });
+  });
 });

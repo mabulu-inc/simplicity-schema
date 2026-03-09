@@ -138,10 +138,30 @@ export async function execute(options: ExecuteOptions): Promise<ExecuteResult> {
       }
 
       // Execute operations (sorted by phase)
-      // Split concurrent operations (e.g. CREATE INDEX CONCURRENTLY) from transactional ones
+      // Split prechecks, concurrent, and transactional operations
       const sorted = [...operations].sort((a, b) => a.phase - b.phase);
-      const transactionalOps = sorted.filter((op) => !op.concurrent);
+      const precheckOps = sorted.filter((op) => op.type === 'run_precheck');
+      const transactionalOps = sorted.filter((op) => !op.concurrent && op.type !== 'run_precheck');
       const concurrentOps = sorted.filter((op) => op.concurrent);
+
+      // Run prechecks before any operations
+      for (const op of precheckOps) {
+        logger?.debug(`Running precheck: ${op.objectName}`);
+        const precheckClient = await pool.connect();
+        try {
+          const res = await precheckClient.query(op.sql);
+          const row = res.rows[0];
+          const value = row ? Object.values(row)[0] : null;
+          // Falsy check: null, undefined, false, 0, '' all abort
+          if (!value) {
+            throw new Error(`Precheck failed: ${op.precheckMessage || op.objectName}`);
+          }
+          result.executed++;
+          logger?.info(`Precheck passed: ${op.objectName}`);
+        } finally {
+          precheckClient.release();
+        }
+      }
 
       // Run transactional operations in a transaction
       if (transactionalOps.length > 0) {

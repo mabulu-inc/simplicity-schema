@@ -79,6 +79,8 @@ export type OperationType =
   | 'grant_schema'
   | 'grant_sequence'
   | 'revoke_sequence'
+  // Prechecks
+  | 'run_precheck'
   // Other
   | 'set_comment'
   | 'add_seed';
@@ -95,6 +97,8 @@ export interface Operation {
   destructive: boolean;
   /** Whether this operation must run outside a transaction (e.g. CONCURRENTLY) */
   concurrent?: boolean;
+  /** Abort message for precheck failures */
+  precheckMessage?: string;
 }
 
 // ─── Desired State (parsed from YAML) ──────────────────────────
@@ -496,6 +500,20 @@ function diffTables(
 function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
   const ops: Operation[] = [];
 
+  // Prechecks (phase 0 — run before any operations)
+  if (table.prechecks) {
+    for (const pc of table.prechecks) {
+      ops.push({
+        type: 'run_precheck',
+        phase: 0,
+        objectName: `${table.table}.${pc.name}`,
+        sql: pc.query,
+        destructive: false,
+        precheckMessage: pc.message,
+      });
+    }
+  }
+
   // Build CREATE TABLE with columns (no FKs)
   const colDefs: string[] = [];
   const fkColumns: ColumnDef[] = [];
@@ -636,6 +654,21 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
 
 function alterTableOps(desired: TableSchema, existing: TableSchema, pgSchema: string): Operation[] {
   const ops: Operation[] = [];
+
+  // Prechecks (phase 0 — run before any operations)
+  if (desired.prechecks) {
+    for (const pc of desired.prechecks) {
+      ops.push({
+        type: 'run_precheck',
+        phase: 0,
+        objectName: `${desired.table}.${pc.name}`,
+        sql: pc.query,
+        destructive: false,
+        precheckMessage: pc.message,
+      });
+    }
+  }
+
   const existingColMap = new Map(existing.columns.map((c) => [c.name, c]));
   const desiredColMap = new Map(desired.columns.map((c) => [c.name, c]));
 
