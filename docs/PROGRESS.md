@@ -5,7 +5,7 @@
 <!-- Updated by each Ralph Loop iteration. Read this FIRST. -->
 
 Last completed task: T-020 (Test infrastructure)
-Next eligible task: (none — all tasks complete)
+Next eligible task: T-021 (CONCURRENTLY indexes)
 
 ## Completed Tasks
 
