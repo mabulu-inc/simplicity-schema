@@ -87,7 +87,7 @@
 ## Milestone 6: Secondary Features
 
 ### T-012: Drift detection
-- **Status**: TODO
+- **Status**: DONE
 - **Depends**: T-009
 - **Description**: Implement read-only drift detection — compare YAML to live DB for all object types and produce a structured DriftReport.
 - **Produces**: `src/drift/index.ts`, tests
