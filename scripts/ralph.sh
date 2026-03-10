@@ -470,10 +470,33 @@ while true; do
   ) &
   commit_detector_pid=$!
 
+  # Shell anti-pattern detector: kill iteration if Claude wastes too many turns
+  # on cat/head/tail/grep/find instead of using dedicated Read/Grep/Glob tools
+  (
+    local anti_pattern_threshold=10
+    while kill -0 "$claude_pid" 2>/dev/null; do
+      sleep 15
+      [[ -f "$log_file" ]] || continue
+      local count
+      count=$(grep -ao '"command":"[^"]*"' "$log_file" 2>/dev/null | grep -cE '(cat |head |tail |grep |find )' || echo 0)
+      if [[ "$count" -ge "$anti_pattern_threshold" ]]; then
+        if kill -0 "$claude_pid" 2>/dev/null; then
+          echo -e "\n  ${YELLOW}[$(date '+%Y-%m-%dT%H:%M:%S')] Shell anti-pattern limit hit (${count} cat/head/tail/grep/find calls) — killing iteration to save context.${RESET}"
+          kill_tree "$claude_pid" TERM
+          sleep 5
+          kill_tree "$claude_pid" KILL 2>/dev/null || true
+        fi
+        break
+      fi
+    done
+  ) &
+  antipattern_pid=$!
+
   # Wait for Claude to finish
   if wait "$claude_pid" 2>/dev/null; then
     kill "$watchdog_pid" 2>/dev/null || true; wait "$watchdog_pid" 2>/dev/null || true
     kill "$commit_detector_pid" 2>/dev/null || true; wait "$commit_detector_pid" 2>/dev/null || true
+    kill "$antipattern_pid" 2>/dev/null || true; wait "$antipattern_pid" 2>/dev/null || true
     if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true; fi
     echo ""
     echo -e "${GREEN}[$(timestamp)] Iteration $iteration completed successfully.${RESET}"
@@ -481,6 +504,7 @@ while true; do
     exit_code=$?
     kill "$watchdog_pid" 2>/dev/null || true; wait "$watchdog_pid" 2>/dev/null || true
     kill "$commit_detector_pid" 2>/dev/null || true; wait "$commit_detector_pid" 2>/dev/null || true
+    kill "$antipattern_pid" 2>/dev/null || true; wait "$antipattern_pid" 2>/dev/null || true
     if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true; fi
     echo ""
     if [[ $exit_code -eq 137 || $exit_code -eq 143 ]]; then
