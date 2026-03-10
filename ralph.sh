@@ -395,7 +395,17 @@ while true; do
   echo ""
   echo -e "${BOLD}[$(timestamp)] === Iteration $iteration/$([ "$MAX_ITERATIONS" -eq 0 ] && echo '∞' || echo "$MAX_ITERATIONS") — Target: $next_task ===${RESET}"
 
-  PROMPT="You are in Ralph Loop iteration $iteration. Follow the Ralph Methodology as defined in CLAUDE.md. Scan docs/tasks/ to find the next eligible task (lowest-numbered TODO with all deps DONE), read the PRD sections it references, then implement it using red/green TDD. When done, commit and update the task file (Status→DONE, Completed timestamp, Commit SHA, Completion Notes). Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit."
+  PROMPT="You are in Ralph Loop iteration $iteration. Follow the Ralph Methodology as defined in CLAUDE.md and docs/RALPH-METHODOLOGY.md.
+
+1. BOOT: Scan docs/tasks/ to find the next eligible task (lowest-numbered TODO with all deps DONE). Read the PRD sections it references.
+2. EXECUTE: Implement using strict red/green TDD — write failing tests FIRST, then implement the minimum to pass.
+3. QUALITY GATES (mandatory before commit):
+   - Every line of production code must be exercised by a test. No untested code.
+   - No code smells: no dead code, no commented-out blocks, no TODO/FIXME/HACK, no duplication.
+   - No security vulnerabilities (SQL injection, command injection, hardcoded secrets, etc.).
+   - Run 'pnpm check' (lint, format, typecheck, build, test:coverage) — must pass clean.
+4. COMMIT: One commit, message format 'T-NNN: description'. No Claude attribution. Update the task file (Status→DONE, Completed timestamp, Commit SHA, Completion Notes).
+5. Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit."
 
   timed_out=false
 

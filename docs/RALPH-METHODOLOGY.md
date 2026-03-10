@@ -65,7 +65,9 @@ What was done. Test count.
 
 ## Quality Gates
 
-Every task must pass `pnpm check` before committing:
+Every task must pass ALL gates before committing. No exceptions.
+
+### Automated (`pnpm check`)
 
 ```
 pnpm check = lint → format → typecheck → build → test:coverage
@@ -74,6 +76,13 @@ pnpm check = lint → format → typecheck → build → test:coverage
 Pre-commit hooks (husky + lint-staged) enforce lint and format on every commit — including ralph's.
 
 T-000 sets up: ESLint, Prettier, husky, lint-staged, coverage config, and `pnpm check`.
+
+### Code quality (enforced during implementation)
+
+- **Every line of production code must be exercised by a test.** This proves red/green was followed. No untested code ships.
+- **No code smells.** No dead code, no commented-out blocks, no TODO/FIXME/HACK left behind, no duplicated logic, no overly complex functions. If a smell is introduced, fix it before committing.
+- **No security vulnerabilities.** No SQL injection, no command injection, no unsanitized user input, no hardcoded secrets. Follow OWASP top 10. If a vulnerability is found in existing code, fix it immediately.
+- **No outdated or deprecated dependencies.** Use current, maintained versions. If a deprecated dep is unavoidable, document the reason and a migration plan in a `## Deprecated Deps` section in the task file.
 
 ## Rules
 
