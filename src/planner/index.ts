@@ -684,6 +684,15 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
   if (table.policies) {
     for (const policy of table.policies) {
       ops.push(createPolicyOp(table.table, policy, pgSchema));
+      if (policy.comment) {
+        ops.push({
+          type: 'set_comment',
+          phase: 14,
+          objectName: `${table.table}.${policy.name}`,
+          sql: `COMMENT ON POLICY "${policy.name}" ON "${pgSchema}"."${table.table}" IS '${escapeQuote(policy.comment)}'`,
+          destructive: false,
+        });
+      }
     }
   }
 
@@ -1325,6 +1334,15 @@ function diffPolicies(table: string, desired: PolicyDef[], existing: PolicyDef[]
       });
       ops.push(createPolicyOp(table, policy, pgSchema));
     }
+    if (policy.comment) {
+      ops.push({
+        type: 'set_comment',
+        phase: 14,
+        objectName: `${table}.${policy.name}`,
+        sql: `COMMENT ON POLICY "${policy.name}" ON "${pgSchema}"."${table}" IS '${escapeQuote(policy.comment)}'`,
+        destructive: false,
+      });
+    }
   }
 
   // Drop policies not in desired
@@ -1358,7 +1376,8 @@ function policyChanged(desired: PolicyDef, existing: PolicyDef): boolean {
 function createPolicyOp(table: string, policy: PolicyDef, pgSchema: string): Operation {
   const cmd = policy.for || 'ALL';
   const permissive = policy.permissive !== false ? 'PERMISSIVE' : 'RESTRICTIVE';
-  let sql = `CREATE POLICY "${policy.name}" ON "${pgSchema}"."${table}" AS ${permissive} FOR ${cmd} TO "${policy.to}"`;
+  const toClause = policy.to.toUpperCase() === 'PUBLIC' ? 'PUBLIC' : `"${policy.to}"`;
+  let sql = `CREATE POLICY "${policy.name}" ON "${pgSchema}"."${table}" AS ${permissive} FOR ${cmd} TO ${toClause}`;
   if (policy.using) sql += ` USING (${policy.using})`;
   if (policy.check) sql += ` WITH CHECK (${policy.check})`;
   return {
