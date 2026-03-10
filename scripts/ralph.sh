@@ -447,20 +447,54 @@ while true; do
   ) &
   watchdog_pid=$!
 
+  # Commit detector: kill claude after it commits (one task per iteration)
+  (
+    local commit_before
+    commit_before=$(git -C "$PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "none")
+    while kill -0 "$claude_pid" 2>/dev/null; do
+      sleep 5
+      local commit_now
+      commit_now=$(git -C "$PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "none")
+      if [[ "$commit_now" != "$commit_before" ]]; then
+        # A new commit landed — give Claude a few seconds to finish task file updates
+        sleep 10
+        if kill -0 "$claude_pid" 2>/dev/null; then
+          echo -e "\n  ${CYAN}[$(date '+%Y-%m-%dT%H:%M:%S')] Commit detected — ending iteration (one task per iteration).${RESET}"
+          kill_tree "$claude_pid" TERM
+          sleep 5
+          kill_tree "$claude_pid" KILL 2>/dev/null || true
+        fi
+        break
+      fi
+    done
+  ) &
+  commit_detector_pid=$!
+
   # Wait for Claude to finish
   if wait "$claude_pid" 2>/dev/null; then
     kill "$watchdog_pid" 2>/dev/null || true; wait "$watchdog_pid" 2>/dev/null || true
+    kill "$commit_detector_pid" 2>/dev/null || true; wait "$commit_detector_pid" 2>/dev/null || true
     if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true; fi
     echo ""
     echo -e "${GREEN}[$(timestamp)] Iteration $iteration completed successfully.${RESET}"
   else
     exit_code=$?
     kill "$watchdog_pid" 2>/dev/null || true; wait "$watchdog_pid" 2>/dev/null || true
+    kill "$commit_detector_pid" 2>/dev/null || true; wait "$commit_detector_pid" 2>/dev/null || true
     if ! $VERBOSE; then kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true; fi
     echo ""
     if [[ $exit_code -eq 137 || $exit_code -eq 143 ]]; then
-      timed_out=true
-      echo -e "${RED}[$(timestamp)] Iteration $iteration TIMED OUT after $(fmt_duration "$ITER_TIMEOUT").${RESET}"
+      # Check if Claude was killed after committing (commit detector) vs timeout
+      local head_now
+      head_now=$(git -C "$PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "none")
+      local head_before
+      head_before=$(git -C "$PROJECT_DIR" log --oneline --since="@${iter_start}" -1 2>/dev/null || true)
+      if [[ -n "$head_before" ]]; then
+        echo -e "${GREEN}[$(timestamp)] Iteration $iteration completed (terminated after commit).${RESET}"
+      else
+        timed_out=true
+        echo -e "${RED}[$(timestamp)] Iteration $iteration TIMED OUT after $(fmt_duration "$ITER_TIMEOUT").${RESET}"
+      fi
     else
       echo -e "${RED}[$(timestamp)] Iteration $iteration exited with code $exit_code.${RESET}"
       if [[ $exit_code -gt 1 ]]; then
