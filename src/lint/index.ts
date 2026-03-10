@@ -65,27 +65,27 @@ function isTypeNarrowing(sql: string): boolean {
 // ─── FK column extraction ───────────────────────────────────────
 
 function extractFkColumn(sql: string): string | null {
-  const match = sql.match(/FOREIGN\s+KEY\s*\((\w+)\)/i);
+  const match = sql.match(/FOREIGN\s+KEY\s*\("?(\w+)"?\)/i);
   return match ? match[1] : null;
 }
 
 function indexCoversColumn(sql: string, column: string): boolean {
-  // Match column in index definition, e.g., ON table (column) or ON table (column, ...)
+  // Match column in index definition, e.g., ON table (column) or ON table ("column", ...)
   const match = sql.match(/\(\s*([^)]+)\s*\)/);
   if (!match) return false;
-  const cols = match[1].split(',').map((c) => c.trim().split(/\s+/)[0]);
+  const cols = match[1].split(',').map((c) => c.trim().replace(/^"|"$/g, '').split(/\s+/)[0]);
   return cols[0]?.toLowerCase() === column.toLowerCase();
 }
 
 // ─── Column name extraction ─────────────────────────────────────
 
 function extractDroppedColumn(sql: string): string | null {
-  const match = sql.match(/DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?(\w+)/i);
+  const match = sql.match(/DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?"?(\w+)"?/i);
   return match ? match[1] : null;
 }
 
 function extractAddedColumn(sql: string): string | null {
-  const match = sql.match(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/i);
+  const match = sql.match(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"?(\w+)"?/i);
   return match ? match[1] : null;
 }
 
@@ -174,8 +174,14 @@ export function lintPlan(plan: PlanResult): LintResult {
     if (op.type === 'add_foreign_key_not_valid' || op.type === 'add_foreign_key') {
       const fkCol = extractFkColumn(op.sql);
       if (fkCol) {
+        const fkTable = op.objectName.split('.')[0];
         const hasIndex = allOps.some(
-          (o) => o.type === 'add_index' && o.objectName === op.objectName && indexCoversColumn(o.sql, fkCol),
+          (o) =>
+            o.type === 'add_index' &&
+            (o.objectName === op.objectName ||
+              o.objectName.startsWith(`${fkTable}.`) ||
+              o.sql.includes(`"${fkTable}"`)) &&
+            indexCoversColumn(o.sql, fkCol),
         );
         if (!hasIndex) {
           warnings.push({
@@ -191,19 +197,22 @@ export function lintPlan(plan: PlanResult): LintResult {
   }
 
   // rename-detection: drop_column + add_column on same table
+  // objectName is "table.column", so compare only the table portion
   const drops = allOps.filter((o) => o.type === 'drop_column');
   const adds = allOps.filter((o) => o.type === 'add_column');
   for (const drop of drops) {
+    const dropTable = drop.objectName.split('.')[0];
     for (const add of adds) {
-      if (drop.objectName === add.objectName) {
+      const addTable = add.objectName.split('.')[0];
+      if (dropTable === addTable) {
         const droppedCol = extractDroppedColumn(drop.sql);
         const addedCol = extractAddedColumn(add.sql);
         if (droppedCol && addedCol && droppedCol !== addedCol) {
           warnings.push({
             rule: 'rename-detection',
             severity: 'info',
-            objectName: drop.objectName,
-            message: `Possible rename detected on "${drop.objectName}": dropping "${droppedCol}" and adding "${addedCol}". Consider using expand/contract instead.`,
+            objectName: dropTable,
+            message: `Possible rename detected on "${dropTable}": dropping "${droppedCol}" and adding "${addedCol}". Consider using expand/contract instead.`,
             sql: `${drop.sql}; ${add.sql}`,
           });
         }
