@@ -409,7 +409,18 @@ function diffFunctions(desired: FunctionSchema[], actual: Map<string, FunctionSc
 
   for (const fn of desired) {
     // CREATE OR REPLACE — always emit for desired functions
-    const args = fn.args ? fn.args.map((a) => `${a.name} ${a.type}`).join(', ') : '';
+    const args = fn.args
+      ? fn.args
+          .map((a) => {
+            const parts: string[] = [];
+            if (a.mode && a.mode !== 'IN') parts.push(a.mode);
+            parts.push(a.name);
+            parts.push(a.type);
+            if (a.default != null) parts.push(`DEFAULT ${a.default}`);
+            return parts.join(' ');
+          })
+          .join(', ')
+      : '';
     const security = fn.security === 'definer' ? 'SECURITY DEFINER' : 'SECURITY INVOKER';
     const volatility = (fn.volatility || 'volatile').toUpperCase();
     const language = fn.language || 'plpgsql';
