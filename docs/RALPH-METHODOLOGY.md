@@ -87,11 +87,13 @@ T-000 sets up: ESLint, Prettier, husky, lint-staged, coverage config, and `pnpm 
 ## Rules
 
 - **Behavioral tests only** — test outcomes against real infrastructure, never mock databases
-- **One commit per task** — no Claude attribution in commit messages
+- **One commit per task** — no Claude attribution in commit messages. The task file update (Status→DONE, SHA, notes) MUST be included in the same commit as the code — never split into a separate commit.
 - **Minimal green** — implement only what failing tests require
 - **No scope creep** — if the task is done, commit. Don't improve adjacent code.
 - **No pushing** — ralph.sh handles git push after each iteration
 - **All checks pass** — `pnpm check` must succeed before committing
+- **Verify early and often** — run `pnpm check` after implementing each layer (e.g. types, then planner, then tests), not only at the end. Catching errors early avoids wasting an entire iteration on code that doesn't compile or pass. A task that spans 6+ files MUST verify at least once mid-implementation.
+- **Use dedicated tools, not shell equivalents** — use the Read tool to read files, not `cat`/`head`/`tail`. Use Grep to search, not `grep`. Shell commands dump large outputs into context and waste tokens. Reserve Bash for commands that have no dedicated tool (git, pnpm, docker).
 
 ---
 

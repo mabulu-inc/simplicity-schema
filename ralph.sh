@@ -398,14 +398,15 @@ while true; do
   PROMPT="You are in Ralph Loop iteration $iteration. Follow the Ralph Methodology as defined in CLAUDE.md and docs/RALPH-METHODOLOGY.md.
 
 1. BOOT: Scan docs/tasks/ to find the next eligible task (lowest-numbered TODO with all deps DONE). Read the PRD sections it references.
-2. EXECUTE: Implement using strict red/green TDD — write failing tests FIRST, then implement the minimum to pass.
+2. EXECUTE: Implement using strict red/green TDD — write failing tests FIRST, then implement the minimum to pass. Run 'pnpm check' after each layer (types, planner, tests, etc.) — do NOT wait until the end. Catch errors early.
 3. QUALITY GATES (mandatory before commit):
    - Every line of production code must be exercised by a test. No untested code.
    - No code smells: no dead code, no commented-out blocks, no TODO/FIXME/HACK, no duplication.
    - No security vulnerabilities (SQL injection, command injection, hardcoded secrets, etc.).
    - Run 'pnpm check' (lint, format, typecheck, build, test:coverage) — must pass clean.
-4. COMMIT: One commit, message format 'T-NNN: description'. No Claude attribution. Update the task file (Status→DONE, Completed timestamp, Commit SHA, Completion Notes).
-5. Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit."
+4. COMMIT: ONE commit per task. Message format 'T-NNN: description'. No Claude attribution. The task file update (Status→DONE, Completed timestamp, Commit SHA, Completion Notes) MUST be in the SAME commit as the code — never a separate commit. Stage everything, commit once.
+5. TOOL USAGE: Use the Read tool to read files, Grep to search — NEVER use cat/head/tail/grep in Bash. Shell dumps waste context tokens.
+6. Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit."
 
   timed_out=false
 
