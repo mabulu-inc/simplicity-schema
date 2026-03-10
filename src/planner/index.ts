@@ -613,6 +613,17 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
   if (table.indexes) {
     for (const idx of table.indexes) {
       ops.push(createIndexOp(table.table, idx, pgSchema));
+      if (idx.comment) {
+        const idxName = idx.name || `idx_${table.table}_${idx.columns.join('_')}`;
+        ops.push({
+          type: 'set_comment',
+          phase: 7,
+          objectName: idxName,
+          sql: `COMMENT ON INDEX "${pgSchema}"."${idxName}" IS '${escapeQuote(idx.comment)}'`,
+          destructive: false,
+          concurrent: true,
+        });
+      }
     }
   }
 
@@ -990,6 +1001,16 @@ function diffIndexes(table: string, desired: IndexDef[], existing: IndexDef[], p
     const name = idx.name || `idx_${table}_${idx.columns.join('_')}`;
     if (!existingByName.has(name)) {
       ops.push(createIndexOp(table, { ...idx, name }, pgSchema));
+    }
+    if (idx.comment) {
+      ops.push({
+        type: 'set_comment',
+        phase: 7,
+        objectName: name,
+        sql: `COMMENT ON INDEX "${pgSchema}"."${name}" IS '${escapeQuote(idx.comment)}'`,
+        destructive: false,
+        concurrent: true,
+      });
     }
   }
 
