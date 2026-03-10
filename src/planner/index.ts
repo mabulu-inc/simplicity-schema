@@ -659,6 +659,15 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
   if (table.triggers) {
     for (const trigger of table.triggers) {
       ops.push(createTriggerOp(table.table, trigger, pgSchema));
+      if (trigger.comment) {
+        ops.push({
+          type: 'set_comment',
+          phase: 14,
+          objectName: `${table.table}.${trigger.name}`,
+          sql: `COMMENT ON TRIGGER "${trigger.name}" ON "${pgSchema}"."${table.table}" IS '${escapeQuote(trigger.comment)}'`,
+          destructive: false,
+        });
+      }
     }
   }
 
@@ -1221,6 +1230,15 @@ function diffTriggers(table: string, desired: TriggerDef[], existing: TriggerDef
     const existingTrigger = existingByName.get(trigger.name);
     if (!existingTrigger) {
       ops.push(createTriggerOp(table, trigger, pgSchema));
+      if (trigger.comment) {
+        ops.push({
+          type: 'set_comment',
+          phase: 14,
+          objectName: `${table}.${trigger.name}`,
+          sql: `COMMENT ON TRIGGER "${trigger.name}" ON "${pgSchema}"."${table}" IS '${escapeQuote(trigger.comment)}'`,
+          destructive: false,
+        });
+      }
     } else if (triggerNeedsRecreate(trigger, existingTrigger)) {
       ops.push({
         type: 'drop_trigger',
@@ -1230,6 +1248,15 @@ function diffTriggers(table: string, desired: TriggerDef[], existing: TriggerDef
         destructive: false,
       });
       ops.push(createTriggerOp(table, trigger, pgSchema));
+      if (trigger.comment) {
+        ops.push({
+          type: 'set_comment',
+          phase: 14,
+          objectName: `${table}.${trigger.name}`,
+          sql: `COMMENT ON TRIGGER "${trigger.name}" ON "${pgSchema}"."${table}" IS '${escapeQuote(trigger.comment)}'`,
+          destructive: false,
+        });
+      }
     }
   }
 
@@ -1253,9 +1280,10 @@ function diffTriggers(table: string, desired: TriggerDef[], existing: TriggerDef
 function createTriggerOp(table: string, trigger: TriggerDef, pgSchema: string): Operation {
   const events = trigger.events.join(' OR ');
   const forEach = trigger.for_each || 'ROW';
-  let sql = `CREATE TRIGGER "${trigger.name}" ${trigger.timing} ${events} ON "${pgSchema}"."${table}" FOR EACH ${forEach} EXECUTE FUNCTION ${trigger.function}()`;
+  const fnRef = trigger.function.includes('.') ? trigger.function : `"${pgSchema}"."${trigger.function}"`;
+  let sql = `CREATE TRIGGER "${trigger.name}" ${trigger.timing} ${events} ON "${pgSchema}"."${table}" FOR EACH ${forEach} EXECUTE FUNCTION ${fnRef}()`;
   if (trigger.when) {
-    sql = `CREATE TRIGGER "${trigger.name}" ${trigger.timing} ${events} ON "${pgSchema}"."${table}" FOR EACH ${forEach} WHEN (${trigger.when}) EXECUTE FUNCTION ${trigger.function}()`;
+    sql = `CREATE TRIGGER "${trigger.name}" ${trigger.timing} ${events} ON "${pgSchema}"."${table}" FOR EACH ${forEach} WHEN (${trigger.when}) EXECUTE FUNCTION ${fnRef}()`;
   }
   return {
     type: 'create_trigger',

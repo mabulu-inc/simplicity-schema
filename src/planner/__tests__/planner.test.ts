@@ -778,7 +778,7 @@ describe('Planner', () => {
       const ops = findOps(result.operations, 'create_trigger');
       expect(ops).toHaveLength(1);
       expect(ops[0].sql).toContain('BEFORE UPDATE');
-      expect(ops[0].sql).toContain('update_timestamp()');
+      expect(ops[0].sql).toContain('"update_timestamp"()');
     });
 
     it('creates table with RLS policies', () => {
@@ -2345,7 +2345,7 @@ describe('Planner', () => {
       expect(ops[0].sql).toContain('FOR EACH STATEMENT');
       expect(ops[0].sql).not.toContain('FOR EACH ROW');
       expect(ops[0].sql).toContain('AFTER TRUNCATE');
-      expect(ops[0].sql).toContain('log_truncate()');
+      expect(ops[0].sql).toContain('"log_truncate"()');
     });
 
     it('creates trigger with WHEN clause', () => {
