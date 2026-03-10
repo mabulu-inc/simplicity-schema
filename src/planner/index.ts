@@ -719,6 +719,35 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     }
   }
 
+  if (table.checks) {
+    for (const check of table.checks) {
+      if (check.comment) {
+        ops.push({
+          type: 'set_comment',
+          phase: 14,
+          objectName: `${table.table}.${check.name}`,
+          sql: `COMMENT ON CONSTRAINT "${check.name}" ON "${pgSchema}"."${table.table}" IS '${escapeQuote(check.comment)}'`,
+          destructive: false,
+        });
+      }
+    }
+  }
+
+  if (table.unique_constraints) {
+    for (const uc of table.unique_constraints) {
+      if (uc.comment) {
+        const ucName = uc.name || `uq_${table.table}_${uc.columns.join('_')}`;
+        ops.push({
+          type: 'set_comment',
+          phase: 14,
+          objectName: `${table.table}.${ucName}`,
+          sql: `COMMENT ON CONSTRAINT "${ucName}" ON "${pgSchema}"."${table.table}" IS '${escapeQuote(uc.comment)}'`,
+          destructive: false,
+        });
+      }
+    }
+  }
+
   // Seeds (phase 15)
   if (table.seeds) {
     for (const seed of table.seeds) {
@@ -1060,13 +1089,37 @@ function diffChecks(table: string, desired: CheckDef[], existing: CheckDef[], pg
   const existingByName = new Map(existing.map((c) => [c.name, c]));
 
   for (const check of desired) {
-    if (!existingByName.has(check.name)) {
+    const existingCheck = existingByName.get(check.name);
+    if (!existingCheck) {
       ops.push({
         type: 'add_check',
         phase: 6,
         objectName: `${table}.${check.name}`,
         sql: `ALTER TABLE "${pgSchema}"."${table}" ADD CONSTRAINT "${check.name}" CHECK (${check.expression})`,
         destructive: false,
+      });
+    }
+    if (check.comment && (!existingCheck || check.comment !== existingCheck.comment)) {
+      ops.push({
+        type: 'set_comment',
+        phase: 14,
+        objectName: `${table}.${check.name}`,
+        sql: `COMMENT ON CONSTRAINT "${check.name}" ON "${pgSchema}"."${table}" IS '${escapeQuote(check.comment)}'`,
+        destructive: false,
+      });
+    }
+  }
+
+  // Drop check constraints not in desired
+  const desiredNames = new Set(desired.map((c) => c.name));
+  for (const [name] of existingByName) {
+    if (!desiredNames.has(name)) {
+      ops.push({
+        type: 'drop_check',
+        phase: 6,
+        objectName: `${table}.${name}`,
+        sql: `ALTER TABLE "${pgSchema}"."${table}" DROP CONSTRAINT "${name}"`,
+        destructive: true,
       });
     }
   }
@@ -1087,7 +1140,8 @@ function diffUniqueConstraints(
 
   for (const uc of desired) {
     const ucName = uc.name || `uq_${table}_${uc.columns.join('_')}`;
-    if (!existingByName.has(ucName)) {
+    const existingUc = existingByName.get(ucName);
+    if (!existingUc) {
       // Safe unique constraint pattern (PRD §8.3):
       // 1. CREATE UNIQUE INDEX CONCURRENTLY (non-blocking)
       // 2. ALTER TABLE ADD CONSTRAINT ... USING INDEX (instant)
@@ -1107,6 +1161,15 @@ function diffUniqueConstraints(
         sql: `ALTER TABLE "${pgSchema}"."${table}" ADD CONSTRAINT "${ucName}" UNIQUE USING INDEX "${ucName}"`,
         destructive: false,
         concurrent: true,
+      });
+    }
+    if (uc.comment && (!existingUc || uc.comment !== existingUc.comment)) {
+      ops.push({
+        type: 'set_comment',
+        phase: 14,
+        objectName: `${table}.${ucName}`,
+        sql: `COMMENT ON CONSTRAINT "${ucName}" ON "${pgSchema}"."${table}" IS '${escapeQuote(uc.comment)}'`,
+        destructive: false,
       });
     }
   }
