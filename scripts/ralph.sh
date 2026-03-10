@@ -405,8 +405,13 @@ while true; do
    - No security vulnerabilities (SQL injection, command injection, hardcoded secrets, etc.).
    - Run 'pnpm check' (lint, format, typecheck, build, test:coverage) — must pass clean.
 4. COMMIT: ONE commit per task. Message format 'T-NNN: description'. No Claude attribution. The task file update (Status→DONE, Completed timestamp, Commit SHA, Completion Notes) MUST be in the SAME commit as the code — never a separate commit. Stage everything, commit once.
-5. TOOL USAGE: Use the Read tool to read files, Grep to search — NEVER use cat/head/tail/grep in Bash. Shell dumps waste context tokens.
-6. Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit."
+5. TOOL USAGE (STRICT — violations will terminate this iteration):
+   - Read files: ALWAYS use the Read tool. NEVER use cat, head, tail, or sed to read files.
+   - Search code: ALWAYS use Grep or Glob tools. NEVER use grep, find, or ls in Bash.
+   - The ONLY acceptable Bash uses are: git, pnpm, docker, and commands with no dedicated tool.
+   - This is enforced automatically. Exceeding 10 shell-read violations kills the iteration.
+6. Do NOT push to origin — the loop handles that. If blocked, note the blocker in the task file and exit.
+7. Complete ONE task, then STOP. Do not start a second task in the same iteration."
 
   timed_out=false
 
