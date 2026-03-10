@@ -332,6 +332,7 @@ cleanup() {
     docker compose -f "$PROJECT_DIR/docker-compose.yml" down 2>/dev/null || true
   fi
 }
+trap 'cleanup; exit 0' INT TERM
 trap cleanup EXIT
 
 # --- Config summary ---

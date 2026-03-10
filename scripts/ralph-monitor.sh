@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'exit 0' INT TERM
 
 # ralph-monitor.sh — Minimal ralph status display with phase timeline.
 #
