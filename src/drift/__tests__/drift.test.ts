@@ -1185,6 +1185,68 @@ describe('detectDrift', () => {
     );
   });
 
+  it('reports FK schema drift', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'posts',
+        columns: [
+          { name: 'id', type: 'integer', primary_key: true },
+          {
+            name: 'user_id',
+            type: 'integer',
+            references: { table: 'users', column: 'id', schema: 'auth' },
+          },
+        ],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('posts', {
+      table: 'posts',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id' } },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        type: 'constraint',
+        object: 'posts.user_id',
+        status: 'different',
+        detail: expect.stringContaining('FK schema differs'),
+      }),
+    );
+  });
+
+  it('reports no FK schema drift when both match', () => {
+    const desired = emptyDesired();
+    desired.tables = [
+      {
+        table: 'posts',
+        columns: [
+          { name: 'id', type: 'integer', primary_key: true },
+          {
+            name: 'user_id',
+            type: 'integer',
+            references: { table: 'users', column: 'id', schema: 'auth' },
+          },
+        ],
+      },
+    ];
+    const actual = emptyActual();
+    actual.tables.set('posts', {
+      table: 'posts',
+      columns: [
+        { name: 'id', type: 'integer', primary_key: true },
+        { name: 'user_id', type: 'integer', references: { table: 'users', column: 'id', schema: 'auth' } },
+      ],
+    });
+    const report = detectDrift(desired, actual);
+    const schemaItems = report.items.filter((i) => i.detail?.includes('FK schema'));
+    expect(schemaItems).toHaveLength(0);
+  });
+
   // ─── Unique constraint drift ──────────────────────────────────
 
   it('reports unique constraint missing in DB', () => {

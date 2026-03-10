@@ -270,6 +270,32 @@ describe('introspectTable', () => {
     expect(fkCol!.references!.initially_deferred).toBe(true);
   });
 
+  it('returns FK schema when referencing a different schema', async () => {
+    const otherSchema = `${TEST_SCHEMA}_other`;
+    await client.query(`CREATE SCHEMA ${otherSchema}`);
+    await client.query(`CREATE TABLE ${otherSchema}.accounts (id uuid PRIMARY KEY DEFAULT gen_random_uuid())`);
+    await exec(`CREATE TABLE IF NOT EXISTS cross_schema_test (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      account_id uuid,
+      CONSTRAINT fk_cross_schema FOREIGN KEY (account_id) REFERENCES ${otherSchema}.accounts(id)
+    )`);
+    const table = await introspectTable(client, 'cross_schema_test', TEST_SCHEMA);
+    const fkCol = table.columns.find((c) => c.name === 'account_id');
+    expect(fkCol).toBeDefined();
+    expect(fkCol!.references).toBeDefined();
+    expect(fkCol!.references!.table).toBe('accounts');
+    expect(fkCol!.references!.schema).toBe(otherSchema);
+    await client.query(`DROP SCHEMA ${otherSchema} CASCADE`);
+  });
+
+  it('omits FK schema when referencing same schema', async () => {
+    const table = await introspectTable(client, 'orders', TEST_SCHEMA);
+    const fkCol = table.columns.find((c) => c.name === 'user_id');
+    expect(fkCol).toBeDefined();
+    expect(fkCol!.references).toBeDefined();
+    expect(fkCol!.references!.schema).toBeUndefined();
+  });
+
   it('returns triggers', async () => {
     const table = await introspectTable(client, 'products', TEST_SCHEMA);
     expect(table.triggers).toBeDefined();

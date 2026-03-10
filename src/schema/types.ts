@@ -8,6 +8,7 @@ export interface ForeignKeyRef {
   table: string;
   column: string;
   name?: string;
+  schema?: string;
   on_delete?: ForeignKeyAction;
   on_update?: ForeignKeyAction;
   deferrable?: boolean;

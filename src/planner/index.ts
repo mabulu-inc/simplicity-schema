@@ -611,7 +611,8 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     const constraintName = ref.name || `fk_${table.table}_${col.name}_${ref.table}`;
     const onDelete = ref.on_delete || 'NO ACTION';
     const onUpdate = ref.on_update || 'NO ACTION';
-    let fkSql = `ALTER TABLE "${pgSchema}"."${table.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;
+    const refSchema = ref.schema || pgSchema;
+    let fkSql = `ALTER TABLE "${pgSchema}"."${table.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${refSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;
     if (ref.deferrable) {
       fkSql += ref.initially_deferred ? ' DEFERRABLE INITIALLY DEFERRED' : ' DEFERRABLE INITIALLY IMMEDIATE';
     }
@@ -763,7 +764,8 @@ function alterTableOps(desired: TableSchema, existing: TableSchema, pgSchema: st
         const constraintName = ref.name || `fk_${desired.table}_${col.name}_${ref.table}`;
         const onDelete = ref.on_delete || 'NO ACTION';
         const onUpdate = ref.on_update || 'NO ACTION';
-        let fkSql = `ALTER TABLE "${pgSchema}"."${desired.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;
+        const refSchema = ref.schema || pgSchema;
+        let fkSql = `ALTER TABLE "${pgSchema}"."${desired.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${refSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;
         if (ref.deferrable) {
           fkSql += ref.initially_deferred ? ' DEFERRABLE INITIALLY DEFERRED' : ' DEFERRABLE INITIALLY IMMEDIATE';
         }

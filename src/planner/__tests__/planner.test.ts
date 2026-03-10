@@ -715,6 +715,48 @@ describe('Planner', () => {
       expect(fkOps[0].sql).not.toContain('INITIALLY DEFERRED');
     });
 
+    it('creates FK with cross-schema reference', () => {
+      const desired = emptyDesired();
+      desired.tables = [
+        {
+          table: 'orders',
+          columns: [
+            { name: 'id', type: 'uuid', primary_key: true },
+            {
+              name: 'user_id',
+              type: 'uuid',
+              references: { table: 'users', column: 'id', schema: 'auth' },
+            },
+          ],
+        },
+      ];
+      const result = buildPlan(desired, emptyActual());
+      const fkOps = findOps(result.operations, 'add_foreign_key_not_valid');
+      expect(fkOps).toHaveLength(1);
+      expect(fkOps[0].sql).toContain('REFERENCES "auth"."users"');
+    });
+
+    it('uses pgSchema as default FK schema when not specified', () => {
+      const desired = emptyDesired();
+      desired.tables = [
+        {
+          table: 'orders',
+          columns: [
+            { name: 'id', type: 'uuid', primary_key: true },
+            {
+              name: 'user_id',
+              type: 'uuid',
+              references: { table: 'users', column: 'id' },
+            },
+          ],
+        },
+      ];
+      const result = buildPlan(desired, emptyActual(), { pgSchema: 'myschema' });
+      const fkOps = findOps(result.operations, 'add_foreign_key_not_valid');
+      expect(fkOps).toHaveLength(1);
+      expect(fkOps[0].sql).toContain('REFERENCES "myschema"."users"');
+    });
+
     it('creates table with triggers', () => {
       const desired = emptyDesired();
       desired.tables = [

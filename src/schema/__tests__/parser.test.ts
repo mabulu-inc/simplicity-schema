@@ -139,6 +139,45 @@ comment: "Order records"
     expect(result.comment).toBe('Order records');
   });
 
+  it('parses cross-schema FK reference', () => {
+    const yaml = `
+table: orders
+columns:
+  - name: id
+    type: uuid
+  - name: user_id
+    type: uuid
+    references:
+      table: users
+      column: id
+      schema: auth
+      on_delete: CASCADE
+`;
+    const result = parseTable(yaml);
+    expect(result.columns[1].references).toEqual({
+      table: 'users',
+      column: 'id',
+      schema: 'auth',
+      on_delete: 'CASCADE',
+    });
+  });
+
+  it('omits schema from FK when not specified', () => {
+    const yaml = `
+table: orders
+columns:
+  - name: id
+    type: uuid
+  - name: user_id
+    type: uuid
+    references:
+      table: users
+      column: id
+`;
+    const result = parseTable(yaml);
+    expect(result.columns[1].references!.schema).toBeUndefined();
+  });
+
   it('parses rls and force_rls booleans', () => {
     const yaml = `
 table: secure

@@ -303,6 +303,10 @@ export async function introspectTable(client: Client, tableName: string, schema:
       if (fk.constraint_name !== defaultFkName) {
         ref.name = fk.constraint_name;
       }
+      // Only set schema if it differs from the table's own schema
+      if (fk.foreign_schema !== schema) {
+        ref.schema = fk.foreign_schema;
+      }
       if (fk.deferrable) {
         ref.deferrable = true;
         ref.initially_deferred = fk.initially_deferred;
@@ -352,6 +356,7 @@ interface FKInfo {
   column: string;
   foreign_table: string;
   foreign_column: string;
+  foreign_schema: string;
   on_delete: ForeignKeyAction;
   on_update: ForeignKeyAction;
   deferrable: boolean;
@@ -537,6 +542,7 @@ async function getForeignKeys(client: Client, table: string, schema: string): Pr
        a.attname AS column,
        cf.relname AS foreign_table,
        af.attname AS foreign_column,
+       nf.nspname AS foreign_schema,
        con.confdeltype AS on_delete,
        con.confupdtype AS on_update,
        con.condeferrable AS deferrable,
@@ -545,6 +551,7 @@ async function getForeignKeys(client: Client, table: string, schema: string): Pr
      JOIN pg_catalog.pg_class cls ON cls.oid = con.conrelid
      JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
      JOIN pg_catalog.pg_class cf ON cf.oid = con.confrelid
+     JOIN pg_catalog.pg_namespace nf ON nf.oid = cf.relnamespace
      JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = con.conkey[1]
      JOIN pg_catalog.pg_attribute af ON af.attrelid = con.confrelid AND af.attnum = con.confkey[1]
      WHERE con.contype = 'f'
@@ -559,6 +566,7 @@ async function getForeignKeys(client: Client, table: string, schema: string): Pr
     column: r.column as string,
     foreign_table: r.foreign_table as string,
     foreign_column: r.foreign_column as string,
+    foreign_schema: r.foreign_schema as string,
     on_delete: FK_ACTION_MAP[r.on_delete as string] || 'NO ACTION',
     on_update: FK_ACTION_MAP[r.on_update as string] || 'NO ACTION',
     deferrable: r.deferrable as boolean,

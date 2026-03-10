@@ -660,6 +660,17 @@ function driftForeignKeys(table: string, desired: ColumnDef[], actual: ColumnDef
           detail: `FK target differs: expected ${dRef.table}.${dRef.column}, actual ${aRef.table}.${aRef.column}`,
         });
       }
+      // Compare FK schema references
+      const dSchema = dRef.schema || '';
+      const aSchema = aRef.schema || '';
+      if (dSchema !== aSchema) {
+        items.push({
+          type: 'constraint',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          detail: `FK schema differs: expected ${dSchema || '(default)'}, actual ${aSchema || '(default)'}`,
+        });
+      }
       // Compare FK options
       const dOnDelete = dRef.on_delete || 'NO ACTION';
       const aOnDelete = aRef.on_delete || 'NO ACTION';

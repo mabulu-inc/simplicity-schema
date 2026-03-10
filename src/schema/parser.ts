@@ -99,6 +99,7 @@ function parseColumnDef(raw: Record<string, unknown>, context: string): ColumnDe
       column: requireString(ref, 'column', `${context}.references`),
     };
     if (ref.name !== undefined) fk.name = String(ref.name);
+    if (ref.schema !== undefined) fk.schema = String(ref.schema);
     if (ref.on_delete !== undefined)
       fk.on_delete = validateEnum(String(ref.on_delete), FK_ACTIONS, 'on_delete', `${context}.references`);
     if (ref.on_update !== undefined)
