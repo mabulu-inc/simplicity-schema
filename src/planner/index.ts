@@ -952,10 +952,11 @@ function diffColumn(table: string, desired: ColumnDef, existing: ColumnDef, pgSc
     });
   }
 
-  // Nullable change
+  // Nullable change — skip for primary key columns (PK columns are always NOT NULL)
+  const isPrimaryKey = desired.primary_key || existing.primary_key;
   const desiredNullable = desired.nullable !== false;
   const existingNullable = existing.nullable !== false;
-  if (desiredNullable !== existingNullable) {
+  if (!isPrimaryKey && desiredNullable !== existingNullable) {
     if (desiredNullable) {
       ops.push({
         type: 'alter_column',
@@ -1012,13 +1013,18 @@ function diffColumn(table: string, desired: ColumnDef, existing: ColumnDef, pgSc
       destructive: false,
     });
   } else if (desired.default === undefined && existing.default !== undefined) {
-    ops.push({
-      type: 'alter_column',
-      phase: 6,
-      objectName: `${table}.${desired.name}`,
-      sql: `ALTER TABLE "${pgSchema}"."${table}" ALTER COLUMN "${desired.name}" DROP DEFAULT`,
-      destructive: false,
-    });
+    // Don't drop auto-generated sequence defaults for serial/bigserial columns
+    const isSerialType = /^(serial|bigserial)$/i.test(desired.type);
+    const isSequenceDefault = /^nextval\(/i.test(existing.default ?? '');
+    if (!(isSerialType && isSequenceDefault)) {
+      ops.push({
+        type: 'alter_column',
+        phase: 6,
+        objectName: `${table}.${desired.name}`,
+        sql: `ALTER TABLE "${pgSchema}"."${table}" ALTER COLUMN "${desired.name}" DROP DEFAULT`,
+        destructive: false,
+      });
+    }
   }
 
   // Comment change

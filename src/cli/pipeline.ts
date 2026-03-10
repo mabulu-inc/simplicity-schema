@@ -105,6 +105,20 @@ export async function runPipeline(
     logger,
   });
 
+  // 6. Record schema files in history after successful migration
+  if (!config.dryRun && !validateOnly && shouldMigrate && discovered.schema.length > 0) {
+    const pool = getPool(config.connectionString);
+    const client = await pool.connect();
+    try {
+      await ensureHistoryTable(client);
+      for (const file of discovered.schema) {
+        await recordFile(client, file.relativePath, file.hash, file.phase);
+      }
+    } finally {
+      client.release();
+    }
+  }
+
   return result;
 }
 
