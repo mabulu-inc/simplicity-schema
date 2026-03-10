@@ -50,6 +50,7 @@ export interface IndexDef {
   where?: string;
   include?: string[];
   opclass?: string;
+  comment?: string;
 }
 
 // ─── Check Constraint ───────────────────────────────────────────
@@ -65,6 +66,7 @@ export interface CheckDef {
 export interface UniqueConstraintDef {
   columns: string[];
   name?: string;
+  comment?: string;
 }
 
 // ─── Trigger ────────────────────────────────────────────────────
@@ -80,6 +82,7 @@ export interface TriggerDef {
   function: string;
   for_each?: TriggerForEach;
   when?: string;
+  comment?: string;
 }
 
 // ─── RLS Policy ─────────────────────────────────────────────────
@@ -93,6 +96,7 @@ export interface PolicyDef {
   using?: string;
   check?: string;
   permissive?: boolean;
+  comment?: string;
 }
 
 // ─── Grants ─────────────────────────────────────────────────────

@@ -713,3 +713,221 @@ columns:
     expect(() => parseSchemaFile('foo: bar')).toThrow(/unrecognized/i);
   });
 });
+
+// ─── description alias for comment ─────────────────────────────
+
+describe('description alias for comment', () => {
+  it('table: description maps to comment', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+description: "Table desc"
+`;
+    const result = parseTable(yaml);
+    expect(result.comment).toBe('Table desc');
+  });
+
+  it('table: comment wins over description', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+comment: "From comment"
+description: "From description"
+`;
+    const result = parseTable(yaml);
+    expect(result.comment).toBe('From comment');
+  });
+
+  it('column: description maps to comment', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+    description: "Column desc"
+`;
+    const result = parseTable(yaml);
+    expect(result.columns[0].comment).toBe('Column desc');
+  });
+
+  it('column: comment wins over description', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+    comment: "From comment"
+    description: "From description"
+`;
+    const result = parseTable(yaml);
+    expect(result.columns[0].comment).toBe('From comment');
+  });
+
+  it('index: description maps to comment', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+indexes:
+  - columns: [id]
+    description: "Index desc"
+`;
+    const result = parseTable(yaml);
+    expect(result.indexes![0].comment).toBe('Index desc');
+  });
+
+  it('check: description maps to comment', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+checks:
+  - name: chk
+    expression: "id IS NOT NULL"
+    description: "Check desc"
+`;
+    const result = parseTable(yaml);
+    expect(result.checks![0].comment).toBe('Check desc');
+  });
+
+  it('check: comment wins over description', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+checks:
+  - name: chk
+    expression: "id IS NOT NULL"
+    comment: "From comment"
+    description: "From description"
+`;
+    const result = parseTable(yaml);
+    expect(result.checks![0].comment).toBe('From comment');
+  });
+
+  it('unique_constraint: description maps to comment', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+unique_constraints:
+  - columns: [id]
+    description: "UC desc"
+`;
+    const result = parseTable(yaml);
+    expect(result.unique_constraints![0].comment).toBe('UC desc');
+  });
+
+  it('trigger: description maps to comment', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+triggers:
+  - name: trg
+    timing: BEFORE
+    events: [INSERT]
+    function: fn
+    description: "Trigger desc"
+`;
+    const result = parseTable(yaml);
+    expect(result.triggers![0].comment).toBe('Trigger desc');
+  });
+
+  it('policy: description maps to comment', () => {
+    const yaml = `
+table: t
+columns:
+  - name: id
+    type: uuid
+policies:
+  - name: pol
+    to: role
+    description: "Policy desc"
+`;
+    const result = parseTable(yaml);
+    expect(result.policies![0].comment).toBe('Policy desc');
+  });
+
+  it('enum: description maps to comment', () => {
+    const yaml = `
+name: status
+values: [a, b]
+description: "Enum desc"
+`;
+    const result = parseEnum(yaml);
+    expect(result.comment).toBe('Enum desc');
+  });
+
+  it('enum: comment wins over description', () => {
+    const yaml = `
+name: status
+values: [a, b]
+comment: "From comment"
+description: "From description"
+`;
+    const result = parseEnum(yaml);
+    expect(result.comment).toBe('From comment');
+  });
+
+  it('function: description maps to comment', () => {
+    const yaml = `
+name: fn
+language: sql
+returns: void
+body: "SELECT 1"
+description: "Function desc"
+`;
+    const result = parseFunction(yaml);
+    expect(result.comment).toBe('Function desc');
+  });
+
+  it('view: description maps to comment', () => {
+    const yaml = `
+name: v
+query: "SELECT 1"
+description: "View desc"
+`;
+    const result = parseView(yaml);
+    expect(result.comment).toBe('View desc');
+  });
+
+  it('materialized view: description maps to comment', () => {
+    const yaml = `
+name: mv
+materialized: true
+query: "SELECT 1"
+description: "MV desc"
+`;
+    const result = parseView(yaml);
+    expect(result.comment).toBe('MV desc');
+  });
+
+  it('role: description maps to comment', () => {
+    const yaml = `
+role: r
+description: "Role desc"
+`;
+    const result = parseRole(yaml);
+    expect(result.comment).toBe('Role desc');
+  });
+
+  it('role: comment wins over description', () => {
+    const yaml = `
+role: r
+comment: "From comment"
+description: "From description"
+`;
+    const result = parseRole(yaml);
+    expect(result.comment).toBe('From comment');
+  });
+});

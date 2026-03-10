@@ -58,6 +58,12 @@ function validateEnum<T extends string>(value: string, allowed: readonly T[], fi
   return value as T;
 }
 
+function resolveComment(raw: Record<string, unknown>): string | undefined {
+  if (raw.comment !== undefined) return String(raw.comment);
+  if (raw.description !== undefined) return String(raw.description);
+  return undefined;
+}
+
 // ─── Column Parsing ─────────────────────────────────────────────
 
 const FK_ACTIONS: readonly ForeignKeyAction[] = ['CASCADE', 'SET NULL', 'SET DEFAULT', 'RESTRICT', 'NO ACTION'];
@@ -74,7 +80,8 @@ function parseColumnDef(raw: Record<string, unknown>, context: string): ColumnDe
   if (raw.unique_name !== undefined) col.unique_name = String(raw.unique_name);
   if (raw.default !== undefined) col.default = String(raw.default);
   if (raw.check !== undefined) col.check = String(raw.check);
-  if (raw.comment !== undefined) col.comment = String(raw.comment);
+  const colComment = resolveComment(raw);
+  if (colComment !== undefined) col.comment = colComment;
   if (raw.generated !== undefined) col.generated = String(raw.generated);
 
   if (raw.references != null) {
@@ -118,6 +125,8 @@ function parseIndexDef(raw: Record<string, unknown>, context: string): IndexDef 
   if (raw.where !== undefined) idx.where = String(raw.where);
   if (raw.include !== undefined) idx.include = raw.include as string[];
   if (raw.opclass !== undefined) idx.opclass = String(raw.opclass);
+  const idxComment = resolveComment(raw);
+  if (idxComment !== undefined) idx.comment = idxComment;
   return idx;
 }
 
@@ -139,6 +148,8 @@ function parseTriggerDef(raw: Record<string, unknown>, context: string): Trigger
   if (raw.for_each !== undefined)
     trig.for_each = validateEnum(String(raw.for_each), TRIGGER_FOR_EACH, 'for_each', context);
   if (raw.when !== undefined) trig.when = String(raw.when);
+  const trigComment = resolveComment(raw);
+  if (trigComment !== undefined) trig.comment = trigComment;
   return trig;
 }
 
@@ -155,6 +166,8 @@ function parsePolicyDef(raw: Record<string, unknown>, context: string): PolicyDe
   if (raw.using !== undefined) pol.using = String(raw.using);
   if (raw.check !== undefined) pol.check = String(raw.check);
   if (raw.permissive !== undefined) pol.permissive = Boolean(raw.permissive);
+  const polComment = resolveComment(raw);
+  if (polComment !== undefined) pol.comment = polComment;
   return pol;
 }
 
@@ -184,7 +197,8 @@ function parseCheckDef(raw: Record<string, unknown>, context: string): CheckDef 
     name: requireString(raw, 'name', context),
     expression: requireString(raw, 'expression', context),
   };
-  if (raw.comment !== undefined) chk.comment = String(raw.comment);
+  const chkComment = resolveComment(raw);
+  if (chkComment !== undefined) chk.comment = chkComment;
   return chk;
 }
 
@@ -193,6 +207,8 @@ function parseUniqueConstraintDef(raw: Record<string, unknown>, context: string)
     columns: requireArray<string>(raw, 'columns', context),
   };
   if (raw.name !== undefined) uc.name = String(raw.name);
+  const ucComment = resolveComment(raw);
+  if (ucComment !== undefined) uc.comment = ucComment;
   return uc;
 }
 
@@ -247,7 +263,8 @@ export function parseTable(yamlStr: string): TableSchema {
   if (raw.force_rls !== undefined) table.force_rls = Boolean(raw.force_rls);
   if (raw.seeds !== undefined) table.seeds = raw.seeds as Record<string, unknown>[];
   if (raw.mixins !== undefined) table.mixins = raw.mixins as string[];
-  if (raw.comment !== undefined) table.comment = String(raw.comment);
+  const tableComment = resolveComment(raw);
+  if (tableComment !== undefined) table.comment = tableComment;
 
   // Column-level check sugar: generate CheckDef entries for columns with `check`
   const columnChecks: CheckDef[] = table.columns
@@ -267,10 +284,11 @@ export function parseEnum(yamlStr: string): EnumSchema {
   const raw = parseYaml(yamlStr) as Record<string, unknown>;
   const ctx = 'enum';
 
+  const enumComment = resolveComment(raw);
   return {
     name: requireString(raw, 'name', ctx),
     values: requireArray<string>(raw, 'values', ctx),
-    ...(raw.comment !== undefined && { comment: String(raw.comment) }),
+    ...(enumComment !== undefined && { comment: enumComment }),
   };
 }
 
@@ -314,7 +332,8 @@ export function parseFunction(yamlStr: string): FunctionSchema {
     fn.grants = (raw.grants as Record<string, unknown>[]).map((g, i) =>
       parseFunctionGrantDef(g, `${ctx}.grants[${i}]`),
     );
-  if (raw.comment !== undefined) fn.comment = String(raw.comment);
+  const fnComment = resolveComment(raw);
+  if (fnComment !== undefined) fn.comment = fnComment;
 
   return fn;
 }
@@ -338,14 +357,16 @@ export function parseView(yamlStr: string): ViewSchema | MaterializedViewSchema 
       );
     if (raw.grants !== undefined)
       mv.grants = (raw.grants as Record<string, unknown>[]).map((g, i) => parseGrantDef(g, `${ctx}.grants[${i}]`));
-    if (raw.comment !== undefined) mv.comment = String(raw.comment);
+    const mvComment = resolveComment(raw);
+    if (mvComment !== undefined) mv.comment = mvComment;
     return mv;
   }
 
   const view: ViewSchema = { name, query };
   if (raw.grants !== undefined)
     view.grants = (raw.grants as Record<string, unknown>[]).map((g, i) => parseGrantDef(g, `${ctx}.grants[${i}]`));
-  if (raw.comment !== undefined) view.comment = String(raw.comment);
+  const viewComment = resolveComment(raw);
+  if (viewComment !== undefined) view.comment = viewComment;
   return view;
 }
 
@@ -366,7 +387,8 @@ export function parseRole(yamlStr: string): RoleSchema {
   if (raw.replication !== undefined) role.replication = Boolean(raw.replication);
   if (raw.connection_limit !== undefined) role.connection_limit = Number(raw.connection_limit);
   if (raw.in !== undefined) role.in = raw.in as string[];
-  if (raw.comment !== undefined) role.comment = String(raw.comment);
+  const roleComment = resolveComment(raw);
+  if (roleComment !== undefined) role.comment = roleComment;
 
   return role;
 }
