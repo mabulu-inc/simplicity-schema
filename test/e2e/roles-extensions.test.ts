@@ -13,23 +13,12 @@ function uniqueRole(base: string): string {
   return `${base}_${Date.now()}_${counter++}`;
 }
 
-async function dropRoleIfExists(ctx: TestProject, roleName: string): Promise<void> {
-  await queryDb(ctx, `DROP OWNED BY "${roleName}"`).catch(() => {});
-  await queryDb(ctx, `DROP ROLE IF EXISTS "${roleName}"`);
-}
-
 describe('E2E: Roles and Extensions', () => {
   let ctx: TestProject;
-  const rolesToCleanup: string[] = [];
 
   afterEach(async () => {
     if (ctx) {
       await ctx.cleanup();
-      // Clean up any roles created during the test
-      for (const role of rolesToCleanup) {
-        await dropRoleIfExists(ctx, role).catch(() => {});
-      }
-      rolesToCleanup.length = 0;
     }
   });
 
@@ -38,7 +27,7 @@ describe('E2E: Roles and Extensions', () => {
   it('creates a role with all attributes', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('app_service');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     writeSchema(ctx.dir, {
       [`roles/${roleName}.yaml`]: `
@@ -79,7 +68,8 @@ connection_limit: 10
     ctx = await useTestProject(DATABASE_URL);
     const groupName = uniqueRole('app_group');
     const memberName = uniqueRole('app_member');
-    rolesToCleanup.push(memberName, groupName);
+    ctx.registerRole(memberName);
+    ctx.registerRole(groupName);
 
     // Pre-create the group role so GRANT ... TO ... can reference it
     await queryDb(
@@ -119,7 +109,7 @@ in:
   it('sets a role comment', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('commented_role');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     writeSchema(ctx.dir, {
       [`roles/${roleName}.yaml`]: `
@@ -144,7 +134,7 @@ comment: 'Read-only application role'
   it('alters a role when attributes change', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('mutable_role');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     // First migration: login=false
     writeSchema(ctx.dir, {
@@ -180,7 +170,9 @@ createdb: true
     const groupName = uniqueRole('team_group');
     const role1 = uniqueRole('team_member1');
     const role2 = uniqueRole('team_member2');
-    rolesToCleanup.push(role1, role2, groupName);
+    ctx.registerRole(role1);
+    ctx.registerRole(role2);
+    ctx.registerRole(groupName);
 
     // Pre-create the group
     await queryDb(
@@ -255,7 +247,7 @@ extensions:
   it('creates an extension with schema_grants', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('ext_user');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     // Pre-create the role for the grant
     await queryDb(

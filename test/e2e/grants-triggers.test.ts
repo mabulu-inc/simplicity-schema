@@ -8,22 +8,12 @@ function uniqueRole(base: string): string {
   return `${base}_${Date.now()}_${counter++}`;
 }
 
-async function dropRoleIfExists(ctx: TestProject, roleName: string): Promise<void> {
-  await queryDb(ctx, `DROP OWNED BY "${roleName}"`).catch(() => {});
-  await queryDb(ctx, `DROP ROLE IF EXISTS "${roleName}"`);
-}
-
 describe('E2E: Grants and Triggers', () => {
   let ctx: TestProject;
-  const rolesToCleanup: string[] = [];
 
   afterEach(async () => {
     if (ctx) {
       await ctx.cleanup();
-      for (const role of rolesToCleanup) {
-        await dropRoleIfExists(ctx, role).catch(() => {});
-      }
-      rolesToCleanup.length = 0;
     }
   });
 
@@ -32,7 +22,7 @@ describe('E2E: Grants and Triggers', () => {
   it('(1) table-level SELECT grant', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('grant_select');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
@@ -79,7 +69,7 @@ grants:
   it('(2) table-level multi-privilege grant (SELECT, INSERT, UPDATE)', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('grant_multi');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
@@ -127,7 +117,7 @@ grants:
   it('(3) column-level grant', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('grant_col');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
@@ -174,7 +164,7 @@ grants:
   it('(4) with_grant_option: true', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('grant_opt');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
@@ -220,7 +210,7 @@ grants:
   it('(5) sequence grant auto-generated for serial columns with INSERT', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('grant_seq');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
@@ -263,7 +253,7 @@ grants:
   it('(6) function EXECUTE grant', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('grant_exec');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
@@ -299,7 +289,7 @@ grants:
   it('(7) schema grant (from extensions schema_grants)', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('grant_schema');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,

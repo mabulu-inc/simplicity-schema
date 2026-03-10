@@ -363,7 +363,9 @@ function driftColumns(table: string, desired: ColumnDef[], actual: ColumnDef[]):
       // Default
       const dDefault = dc.default !== undefined ? String(dc.default) : undefined;
       const aDefault = ac.default !== undefined ? String(ac.default) : undefined;
-      if (dDefault !== aDefault) {
+      const serialType = /^(small)?serial|bigserial$/i.test(dc.type);
+      const impliedNextval = serialType && !dDefault && aDefault && /^nextval\(/.test(aDefault);
+      if (dDefault !== aDefault && !impliedNextval) {
         items.push({
           type: 'column',
           object: `${table}.${dc.name}`,

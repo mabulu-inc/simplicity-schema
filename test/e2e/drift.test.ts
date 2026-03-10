@@ -8,21 +8,11 @@ function uniqueRole(base: string): string {
   return `${base}_${Date.now()}_${counter++}`;
 }
 
-async function dropRoleIfExists(ctx: TestProject, roleName: string): Promise<void> {
-  await queryDb(ctx, `DROP OWNED BY "${roleName}"`).catch(() => {});
-  await queryDb(ctx, `DROP ROLE IF EXISTS "${roleName}"`);
-}
-
 describe('E2E: Drift detection', () => {
   let ctx: TestProject;
-  const rolesToCleanup: string[] = [];
 
   afterEach(async () => {
     if (ctx) {
-      for (const role of rolesToCleanup) {
-        await dropRoleIfExists(ctx, role).catch(() => {});
-      }
-      rolesToCleanup.length = 0;
       await ctx.cleanup();
     }
   });
@@ -234,7 +224,7 @@ body: "SELECT a + b"
   it('(8) role attribute difference detected', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('drift_role');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     writeSchema(ctx.dir, {
       [`roles/${roleName}.yaml`]: `
@@ -260,7 +250,7 @@ createdb: false
   it('(9) grant difference detected', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('drift_grantee');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,

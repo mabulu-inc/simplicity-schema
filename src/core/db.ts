@@ -44,6 +44,15 @@ export async function closePool(): Promise<void> {
   await Promise.all(promises);
 }
 
+/** Close and remove a specific pool from the cache. */
+export async function removePool(connectionString: string): Promise<void> {
+  const pool = pools.get(connectionString);
+  if (pool) {
+    await pool.end();
+    pools.delete(connectionString);
+  }
+}
+
 function isTransientError(err: unknown): boolean {
   if (err && typeof err === 'object' && 'code' in err) {
     return TRANSIENT_ERROR_CODES.includes((err as { code: string }).code as (typeof TRANSIENT_ERROR_CODES)[number]);

@@ -53,14 +53,14 @@ default:
     // CLI overrides should win
     ctx = await useTestProject(DATABASE_URL);
     const config = resolveConfig({
-      connectionString: DATABASE_URL,
+      connectionString: ctx.config.connectionString,
       pgSchema: ctx.schema,
       baseDir: ctx.dir,
       lockTimeout: 2000,
       configPath,
     });
 
-    expect(config.connectionString).toBe(DATABASE_URL);
+    expect(config.connectionString).toBe(ctx.config.connectionString);
     expect(config.pgSchema).toBe(ctx.schema);
     expect(config.lockTimeout).toBe(2000);
   });
@@ -169,7 +169,7 @@ default:
 
     // Run migration with custom timeouts
     const config = resolveConfig({
-      connectionString: DATABASE_URL,
+      connectionString: ctx.config.connectionString,
       pgSchema: ctx.schema,
       baseDir: ctx.dir,
       lockTimeout: 7500,
@@ -181,7 +181,7 @@ default:
     expect(result.executed).toBeGreaterThan(0);
 
     // Verify timeouts are applied by checking them in a session via withClient
-    const pool = getPool(DATABASE_URL);
+    const pool = getPool(ctx.config.connectionString);
     const client = await pool.connect();
     try {
       // Set timeouts the same way the pipeline does

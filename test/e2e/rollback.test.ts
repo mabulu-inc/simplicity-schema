@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   useTestProject,
   writeSchema,
@@ -10,65 +10,24 @@ import {
 import { DATABASE_URL } from './setup.js';
 import type { TestProject } from './helpers.js';
 import { runDown } from '../../src/rollback/index.js';
-import { getPool } from '../../src/core/db.js';
 
 let roleCounter = 0;
 function uniqueRole(base: string): string {
   return `${base}_${Date.now()}_${roleCounter++}`;
 }
 
-async function dropRoleIfExists(ctx: TestProject, roleName: string): Promise<void> {
-  await queryDb(ctx, `DROP OWNED BY "${roleName}"`).catch(() => {});
-  await queryDb(ctx, `DROP ROLE IF EXISTS "${roleName}"`);
-}
-
-async function snapshotCount(): Promise<number> {
-  const pool = getPool(DATABASE_URL);
-  const client = await pool.connect();
-  try {
-    await client.query('CREATE SCHEMA IF NOT EXISTS _simplicity');
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS _simplicity.snapshots (
-        id serial PRIMARY KEY,
-        operations jsonb NOT NULL,
-        pg_schema text NOT NULL DEFAULT 'public',
-        created_at timestamptz NOT NULL DEFAULT now()
-      )
-    `);
-    const res = await client.query('SELECT count(*)::int AS cnt FROM _simplicity.snapshots');
-    return res.rows[0].cnt;
-  } finally {
-    client.release();
-  }
-}
-
-async function clearSnapshots(): Promise<void> {
-  const pool = getPool(DATABASE_URL);
-  const client = await pool.connect();
-  try {
-    await client.query('DELETE FROM _simplicity.snapshots').catch(() => {});
-  } finally {
-    client.release();
-  }
+async function snapshotCount(ctx: TestProject): Promise<number> {
+  const res = await queryDb(ctx, 'SELECT count(*)::int AS cnt FROM _simplicity.snapshots');
+  return res.rows[0].cnt;
 }
 
 describe('E2E: Rollback', () => {
   let ctx: TestProject;
-  const rolesToCleanup: string[] = [];
-
-  beforeEach(async () => {
-    await clearSnapshots();
-  });
 
   afterEach(async () => {
     if (ctx) {
-      for (const role of rolesToCleanup) {
-        await dropRoleIfExists(ctx, role).catch(() => {});
-      }
-      rolesToCleanup.length = 0;
       await ctx.cleanup();
     }
-    await clearSnapshots();
   });
 
   // (1) Migration auto-captures snapshot
@@ -91,7 +50,7 @@ columns:
     await runMigration(ctx);
     await assertTableExists(ctx, 'snap_test');
 
-    const count = await snapshotCount();
+    const count = await snapshotCount(ctx);
     expect(count).toBe(1);
   });
 
@@ -387,7 +346,7 @@ rls: true
   it('runDown reverses grant', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('rb_grant');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
@@ -503,12 +462,12 @@ columns:
     await runMigration(ctx);
 
     // Snapshot should exist
-    expect(await snapshotCount()).toBe(1);
+    expect(await snapshotCount(ctx)).toBe(1);
 
     await runDown(ctx.config.connectionString);
 
     // Snapshot should be gone
-    expect(await snapshotCount()).toBe(0);
+    expect(await snapshotCount(ctx)).toBe(0);
   });
 
   // (10) Multiple migrations -> down only reverses the latest

@@ -11,25 +11,24 @@ afterAll(async () => {
 });
 
 describe('useTestProject', () => {
-  it('creates an isolated PG schema and temp directory', async () => {
+  it('creates an isolated database and temp directory', async () => {
     const project = await useTestProject(DATABASE_URL);
     try {
-      // Should have a unique schema name
-      expect(project.schema).toMatch(/^test_/);
+      // Should use public schema in an isolated database
+      expect(project.schema).toBe('public');
 
       // Should have a temp directory
       expect(fs.existsSync(project.dir)).toBe(true);
 
-      // Should have a config
-      expect(project.config.connectionString).toBe(DATABASE_URL);
-      expect(project.config.pgSchema).toBe(project.schema);
+      // Should have a config pointing to the isolated database
+      expect(project.config.connectionString).toBe(project.connectionString);
+      expect(project.config.pgSchema).toBe('public');
       expect(project.config.baseDir).toBe(project.dir);
 
-      // Should be able to query in the schema
-      const pool = getPool(DATABASE_URL);
+      // Should be able to query in the isolated database
+      const pool = getPool(project.connectionString);
       const client = await pool.connect();
       try {
-        await client.query(`SET search_path TO "${project.schema}"`);
         await client.query('CREATE TABLE test_table (id serial PRIMARY KEY)');
         const result = await client.query('SELECT count(*) FROM test_table');
         expect(result.rows[0].count).toBe('0');
@@ -41,20 +40,18 @@ describe('useTestProject', () => {
     }
   });
 
-  it('cleanup drops the schema and removes the temp directory', async () => {
+  it('cleanup drops the database and removes the temp directory', async () => {
     const project = await useTestProject(DATABASE_URL);
-    const schemaName = project.schema;
+    const dbName = new URL(project.connectionString).pathname.slice(1);
     const dir = project.dir;
 
     await project.cleanup();
 
-    // Schema should be dropped
+    // Database should be dropped
     const pool = getPool(DATABASE_URL);
     const client = await pool.connect();
     try {
-      const result = await client.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`, [
-        schemaName,
-      ]);
+      const result = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
       expect(result.rows.length).toBe(0);
     } finally {
       client.release();
@@ -85,14 +82,12 @@ columns:
       expect(result.executed).toBeGreaterThan(0);
 
       // Verify the table was created
-      const pool = getPool(DATABASE_URL);
+      const pool = getPool(project.connectionString);
       const client = await pool.connect();
       try {
-        await client.query(`SET search_path TO "${project.schema}"`);
         const res = await client.query(
           `SELECT column_name FROM information_schema.columns
-           WHERE table_schema = $1 AND table_name = 'users' ORDER BY ordinal_position`,
-          [project.schema],
+           WHERE table_schema = 'public' AND table_name = 'users' ORDER BY ordinal_position`,
         );
         expect(res.rows.map((r: { column_name: string }) => r.column_name)).toEqual(['id', 'email']);
       } finally {

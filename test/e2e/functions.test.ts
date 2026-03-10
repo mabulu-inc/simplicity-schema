@@ -417,6 +417,7 @@ body: |
       END IF;
     END $$`,
     );
+    ctx.registerRole('test_fn_user');
 
     writeSchema(ctx.dir, {
       'functions/granted_fn.yaml': `
@@ -439,12 +440,6 @@ grants:
       `SELECT has_function_privilege('test_fn_user', '"${ctx.schema}".granted_fn()', 'EXECUTE') AS has_exec`,
     );
     expect(result.rows[0].has_exec).toBe(true);
-
-    // Cleanup: drop schema first (CASCADE removes function+grants), then role
-    await ctx.cleanup();
-    await queryDb(ctx, 'DROP ROLE IF EXISTS test_fn_user');
-    // Prevent double cleanup in afterEach
-    ctx = undefined as unknown as TestProject;
   });
 
   it('sets a function comment', async () => {

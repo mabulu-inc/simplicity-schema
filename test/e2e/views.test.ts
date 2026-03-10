@@ -64,6 +64,7 @@ query: |
       END IF;
     END $$`,
     );
+    ctx.registerRole('test_view_reader');
 
     writeSchema(ctx.dir, {
       'tables/users.yaml': `
@@ -92,12 +93,6 @@ grants:
       `SELECT has_table_privilege('test_view_reader', '"${s}"."active_users"', 'SELECT') AS has_sel`,
     );
     expect(result.rows[0].has_sel).toBe(true);
-
-    // Cleanup: drop schema first (CASCADE removes grants), then role
-    await ctx.cleanup();
-    await queryDb(ctx, 'DROP OWNED BY test_view_reader');
-    await queryDb(ctx, 'DROP ROLE IF EXISTS test_view_reader');
-    ctx = undefined as unknown as TestProject;
   });
 
   it('sets a view comment', async () => {
@@ -273,6 +268,7 @@ indexes:
       END IF;
     END $$`,
     );
+    ctx.registerRole('test_view_reader');
 
     writeSchema(ctx.dir, {
       'tables/orders.yaml': `
@@ -304,12 +300,6 @@ grants:
       `SELECT has_table_privilege('test_view_reader', '"${s}"."order_stats"', 'SELECT') AS has_sel`,
     );
     expect(result.rows[0].has_sel).toBe(true);
-
-    // Cleanup: drop schema first (CASCADE removes grants), then role
-    await ctx.cleanup();
-    await queryDb(ctx, 'DROP OWNED BY test_view_reader');
-    await queryDb(ctx, 'DROP ROLE IF EXISTS test_view_reader');
-    ctx = undefined as unknown as TestProject;
   });
 
   it('sets a materialized view comment', async () => {

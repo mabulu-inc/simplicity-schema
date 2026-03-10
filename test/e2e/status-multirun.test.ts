@@ -1,12 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import {
-  useTestProject,
-  writeSchema,
-  runMigration,
-  queryDb,
-  assertTableExists,
-  assertColumnExists,
-} from './helpers.js';
+import { useTestProject, writeSchema, runMigration, assertTableExists, assertColumnExists } from './helpers.js';
 import { DATABASE_URL } from './setup.js';
 import { getStatus } from '../../src/cli/pipeline.js';
 import { createLogger } from '../../src/core/logger.js';
@@ -25,9 +18,6 @@ describe('E2E status command', () => {
 
   it('shows no applied files on fresh database', async () => {
     ctx = await useTestProject(DATABASE_URL);
-
-    // Clean history table for isolation
-    await queryDb(ctx, 'DELETE FROM _simplicity.history');
 
     writeSchema(ctx.dir, {
       'tables/accounts.yaml': `

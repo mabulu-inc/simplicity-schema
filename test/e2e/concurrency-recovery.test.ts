@@ -35,8 +35,8 @@ columns:
 `,
     });
 
-    // Hold the advisory lock from a separate client
-    const pool = getPool(DATABASE_URL);
+    // Hold the advisory lock from a separate client on the test database
+    const pool = getPool(ctx.config.connectionString);
     const holdClient = await pool.connect();
     try {
       const acquired = await acquireAdvisoryLock(holdClient);
@@ -68,7 +68,7 @@ columns:
     await runMigration(ctx);
 
     // After migration completes, we should be able to acquire the lock
-    const pool = getPool(DATABASE_URL);
+    const pool = getPool(ctx.config.connectionString);
     const client = await pool.connect();
     try {
       const acquired = await acquireAdvisoryLock(client);
@@ -253,7 +253,7 @@ columns:
 
     // Manually create an invalid index by starting CREATE INDEX CONCURRENTLY
     // and then marking it as invalid
-    const pool = getPool(DATABASE_URL);
+    const pool = getPool(ctx.config.connectionString);
     const client = await pool.connect();
     try {
       // Create a valid index first, then mark it invalid to simulate a failed CONCURRENTLY
@@ -314,7 +314,7 @@ columns:
     await runMigration(ctx);
 
     // Lock the table from one connection
-    const pool = getPool(DATABASE_URL);
+    const pool = getPool(ctx.config.connectionString);
     const lockHolder = await pool.connect();
     let attempt = 0;
 
@@ -327,7 +327,7 @@ columns:
       // The first attempt(s) will fail with lock_timeout,
       // then we release the lock so the retry succeeds
       const resultPromise = withTransaction(
-        DATABASE_URL,
+        ctx.config.connectionString,
         async (client) => {
           attempt++;
           await client.query(`INSERT INTO "${ctx.schema}".counters (value) VALUES (${attempt})`);

@@ -98,10 +98,25 @@ function buildTableYaml(table: TableSchema): Record<string, unknown> {
   const result: Record<string, unknown> = { table: table.table };
 
   result.columns = table.columns.map((col) => {
-    const c: Record<string, unknown> = { name: col.name, type: col.type };
+    let type = col.type;
+    let defaultVal = col.default;
+
+    // Recognize serial columns: integer + nextval(...) default
+    if (type === 'integer' && typeof defaultVal === 'string' && /^nextval\(/.test(defaultVal)) {
+      type = 'serial';
+      defaultVal = undefined;
+    } else if (type === 'bigint' && typeof defaultVal === 'string' && /^nextval\(/.test(defaultVal)) {
+      type = 'bigserial';
+      defaultVal = undefined;
+    } else if (type === 'smallint' && typeof defaultVal === 'string' && /^nextval\(/.test(defaultVal)) {
+      type = 'smallserial';
+      defaultVal = undefined;
+    }
+
+    const c: Record<string, unknown> = { name: col.name, type };
     if (col.primary_key) c.primary_key = true;
     if (col.nullable !== undefined) c.nullable = col.nullable;
-    if (col.default !== undefined) c.default = col.default;
+    if (defaultVal !== undefined) c.default = defaultVal;
     if (col.unique) c.unique = true;
     if (col.comment) c.comment = col.comment;
     if (col.references) {

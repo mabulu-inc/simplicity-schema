@@ -37,9 +37,8 @@ values:
   it('adds a value to an existing enum on second migration', async () => {
     ctx = await useTestProject(DATABASE_URL);
 
-    // Pre-create in both the test schema (for introspection) and public (for unqualified ALTER TYPE)
+    // Pre-create in the test schema (for introspection)
     await queryDb(ctx, `CREATE TYPE "${ctx.schema}"."order_status" AS ENUM ('pending', 'processing', 'shipped')`);
-    await queryDb(ctx, `CREATE TYPE "order_status" AS ENUM ('pending', 'processing', 'shipped')`);
 
     writeSchema(ctx.dir, {
       'enums/order_status.yaml': `
@@ -54,14 +53,13 @@ values:
 
     await runMigration(ctx);
 
-    // The ALTER TYPE runs unqualified so it modifies the public-schema enum
     const result = await queryDb(
       ctx,
       `SELECT e.enumlabel
        FROM pg_enum e
        JOIN pg_type t ON e.enumtypid = t.oid
        JOIN pg_namespace n ON t.typnamespace = n.oid
-       WHERE n.nspname = 'public' AND t.typname = 'order_status'
+       WHERE n.nspname = '${ctx.schema}' AND t.typname = 'order_status'
        ORDER BY e.enumsortorder`,
     );
     const values = result.rows.map((r: { enumlabel: string }) => r.enumlabel);

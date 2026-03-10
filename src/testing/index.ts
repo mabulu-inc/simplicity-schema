@@ -2,13 +2,13 @@
  * Test helpers for @mabulu-inc/simplicity-schema.
  *
  * Provides utilities for creating isolated test environments with
- * their own PostgreSQL schemas and temp directories.
+ * their own PostgreSQL databases and temp directories.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { getPool } from '../core/db.js';
+import { getPool, removePool } from '../core/db.js';
 import { resolveConfig } from '../core/config.js';
 import type { SimplicitySchemaConfig } from '../core/config.js';
 import { createLogger } from '../core/logger.js';
@@ -48,39 +48,62 @@ export interface TestProject {
   dir: string;
   /** Pre-configured config pointing to this test's schema and dir */
   config: SimplicitySchemaConfig;
+  /** Connection string for this test's isolated database */
+  connectionString: string;
   /** Run the migration pipeline against this test project */
   migrate: (opts?: { allowDestructive?: boolean }) => Promise<ExecuteResult>;
   /** Run drift detection against this test project */
   drift: () => Promise<DriftReport>;
-  /** Clean up: drop schema and remove temp dir */
+  /** Register a role to be dropped during cleanup */
+  registerRole: (roleName: string) => void;
+  /** Clean up: drop database, registered roles, and remove temp dir */
   cleanup: () => Promise<void>;
 }
 
 /**
- * Create an isolated test project with its own PG schema and temp directory.
+ * Build a connection string pointing to a different database.
+ */
+function replaceDatabase(connectionString: string, dbName: string): string {
+  const url = new URL(connectionString);
+  url.pathname = `/${dbName}`;
+  return url.toString();
+}
+
+/**
+ * Create an isolated test project with its own PostgreSQL database and temp directory.
  */
 export async function useTestProject(connectionString: string): Promise<TestProject> {
   const id = crypto.randomBytes(8).toString('hex');
-  const schema = `test_${id}`;
+  const dbName = `test_${id}`;
+  const schema = 'public';
   const dir = fs.mkdtempSync('/tmp/simplicity-test-');
 
-  // Create the PG schema
-  const pool = getPool(connectionString);
-  const client = await pool.connect();
+  // Create an isolated database using the admin connection
+  const adminPool = getPool(connectionString);
+  const adminClient = await adminPool.connect();
   try {
-    await client.query(`CREATE SCHEMA "${schema}"`);
+    await adminClient.query(`CREATE DATABASE "${dbName}"`);
   } finally {
-    client.release();
+    adminClient.release();
   }
 
+  const testConnectionString = replaceDatabase(connectionString, dbName);
+
   const config = resolveConfig({
-    connectionString,
+    connectionString: testConnectionString,
     baseDir: dir,
     pgSchema: schema,
     allowDestructive: false,
   });
 
   const logger = createLogger({ verbose: false, quiet: true, json: false });
+  const rolesToCleanup: string[] = [];
+
+  function registerRole(roleName: string): void {
+    if (!rolesToCleanup.includes(roleName)) {
+      rolesToCleanup.push(roleName);
+    }
+  }
 
   async function migrate(opts?: { allowDestructive?: boolean }): Promise<ExecuteResult> {
     const migrationConfig = {
@@ -92,22 +115,36 @@ export async function useTestProject(connectionString: string): Promise<TestProj
 
   async function drift(): Promise<DriftReport> {
     const desired = await parseDesiredState(dir, logger);
-    const actual = await introspectActual(connectionString, schema);
+    const actual = await introspectActual(testConnectionString, schema);
     return detectDrift(desired, actual);
   }
 
   async function cleanup(): Promise<void> {
-    const pool = getPool(connectionString);
-    const client = await pool.connect();
+    // Close and remove the pool for this test database before dropping it
+    await removePool(testConnectionString);
+
+    const adminPool = getPool(connectionString);
+    const adminClient = await adminPool.connect();
     try {
-      await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      // Terminate any remaining connections to the test database
+      await adminClient.query(
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid != pg_backend_pid()`,
+        [dbName],
+      );
+      await adminClient.query(`DROP DATABASE IF EXISTS "${dbName}"`);
+
+      // Drop any roles registered for cleanup (roles are cluster-wide)
+      for (const role of rolesToCleanup) {
+        await adminClient.query(`DROP OWNED BY "${role}"`).catch(() => {});
+        await adminClient.query(`DROP ROLE IF EXISTS "${role}"`);
+      }
     } finally {
-      client.release();
+      adminClient.release();
     }
     fs.rmSync(dir, { recursive: true, force: true });
   }
 
-  return { schema, dir, config, migrate, drift, cleanup };
+  return { schema, dir, config, connectionString: testConnectionString, migrate, drift, cleanup, registerRole };
 }
 
 /**

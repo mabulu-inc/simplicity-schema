@@ -15,22 +15,12 @@ function uniqueRole(base: string): string {
   return `${base}_${Date.now()}_${counter++}`;
 }
 
-async function dropRoleIfExists(ctx: TestProject, roleName: string): Promise<void> {
-  await queryDb(ctx, `DROP OWNED BY "${roleName}"`).catch(() => {});
-  await queryDb(ctx, `DROP ROLE IF EXISTS "${roleName}"`);
-}
-
 describe('E2E: Mixins', () => {
   let ctx: TestProject;
-  const rolesToCleanup: string[] = [];
 
   afterEach(async () => {
     if (ctx) {
       await ctx.cleanup();
-      for (const role of rolesToCleanup) {
-        await dropRoleIfExists(ctx, role).catch(() => {});
-      }
-      rolesToCleanup.length = 0;
     }
   });
 
@@ -190,7 +180,7 @@ columns:
   it('(4) mixin with policies and grants merged', async () => {
     ctx = await useTestProject(DATABASE_URL);
     const roleName = uniqueRole('mixin_role');
-    rolesToCleanup.push(roleName);
+    ctx.registerRole(roleName);
 
     await queryDb(
       ctx,
