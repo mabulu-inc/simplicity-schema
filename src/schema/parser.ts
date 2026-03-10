@@ -111,10 +111,13 @@ function parseColumnDef(raw: Record<string, unknown>, context: string): ColumnDe
 
   if (raw.expand != null) {
     const exp = raw.expand as Record<string, unknown>;
-    col.expand = {
+    const expandDef: ExpandDef = {
       from: requireString(exp, 'from', `${context}.expand`),
       transform: requireString(exp, 'transform', `${context}.expand`),
-    } satisfies ExpandDef;
+    };
+    if (exp.reverse !== undefined) expandDef.reverse = String(exp.reverse);
+    if (exp.batch_size !== undefined) expandDef.batch_size = Number(exp.batch_size);
+    col.expand = expandDef;
   }
 
   return col;

@@ -112,14 +112,20 @@ export function planExpandColumn(
   });
 
   // 2. Create dual-write trigger function + trigger
+  const forwardExpr = expand.transform.replace(/\b(\w+)\b/g, (match) => {
+    if (match === expand.from) return `NEW.${match}`;
+    return match;
+  });
+  const reverseBlock = expand.reverse
+    ? `\n  NEW.${expand.from} := ${expand.reverse.replace(/\b(\w+)\b/g, (match) => {
+        if (match === newColumn) return `NEW.${match}`;
+        return match;
+      })};`
+    : '';
   const triggerSql = `
 CREATE OR REPLACE FUNCTION ${qualifiedFn}() RETURNS trigger AS $$
 BEGIN
-  NEW.${newColumn} := ${expand.transform.replace(/\b(\w+)\b/g, (match) => {
-    // Replace column references with NEW.column
-    if (match === expand.from) return `NEW.${match}`;
-    return match;
-  })};
+  NEW.${newColumn} := ${forwardExpr};${reverseBlock}
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -137,12 +143,13 @@ CREATE OR REPLACE TRIGGER ${trgName}
     destructive: false,
   });
 
-  // 3. Backfill existing rows
+  // 3. Backfill existing rows (batched by batch_size)
+  const batchSize = expand.batch_size || 1000;
   ops.push({
     type: 'backfill_column',
     phase: 102,
     objectName: `${tableName}.${newColumn}`,
-    sql: `UPDATE ${qualifiedTable} SET ${newColumn} = ${expand.transform} WHERE ${newColumn} IS NULL`,
+    sql: `UPDATE ${qualifiedTable} SET ${newColumn} = ${expand.transform} WHERE ctid = ANY(ARRAY(SELECT ctid FROM ${qualifiedTable} WHERE ${newColumn} IS NULL LIMIT ${batchSize}))`,
     destructive: false,
   });
 

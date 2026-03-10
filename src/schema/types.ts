@@ -20,6 +20,8 @@ export interface ForeignKeyRef {
 export interface ExpandDef {
   from: string;
   transform: string;
+  reverse?: string;
+  batch_size?: number;
 }
 
 // ─── Column ─────────────────────────────────────────────────────

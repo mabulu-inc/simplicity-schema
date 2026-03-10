@@ -178,6 +178,50 @@ columns:
     expect(result.columns[1].references!.schema).toBeUndefined();
   });
 
+  it('parses expand with reverse and batch_size', () => {
+    const yaml = `
+table: users
+columns:
+  - name: id
+    type: uuid
+  - name: email_lower
+    type: text
+    expand:
+      from: email
+      transform: "lower(email)"
+      reverse: "email"
+      batch_size: 5000
+`;
+    const result = parseTable(yaml);
+    expect(result.columns[1].expand).toEqual({
+      from: 'email',
+      transform: 'lower(email)',
+      reverse: 'email',
+      batch_size: 5000,
+    });
+  });
+
+  it('omits reverse and batch_size from expand when not specified', () => {
+    const yaml = `
+table: users
+columns:
+  - name: id
+    type: uuid
+  - name: email_lower
+    type: text
+    expand:
+      from: email
+      transform: "lower(email)"
+`;
+    const result = parseTable(yaml);
+    expect(result.columns[1].expand).toEqual({
+      from: 'email',
+      transform: 'lower(email)',
+    });
+    expect(result.columns[1].expand!.reverse).toBeUndefined();
+    expect(result.columns[1].expand!.batch_size).toBeUndefined();
+  });
+
   it('parses rls and force_rls booleans', () => {
     const yaml = `
 table: secure

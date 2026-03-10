@@ -85,6 +85,52 @@ describe('Expand/Contract', () => {
       expect(ops.length).toBe(3);
       expect(ops[2].sql).toContain('status');
     });
+
+    it('should include reverse transform in dual-write trigger', () => {
+      const ops = planExpandColumn('users', 'email_lower', 'text', {
+        from: 'email',
+        transform: 'lower(email)',
+        reverse: 'email',
+      });
+
+      expect(ops.length).toBe(3);
+      const triggerSql = ops[1].sql;
+      // Should write back to old column using reverse expression
+      expect(triggerSql).toContain('NEW.email :=');
+      expect(triggerSql).toContain('NEW.email_lower');
+    });
+
+    it('should not include reverse write when reverse is not specified', () => {
+      const ops = planExpandColumn('users', 'email_lower', 'text', {
+        from: 'email',
+        transform: 'lower(email)',
+      });
+
+      const triggerSql = ops[1].sql;
+      // Should NOT contain reverse write to old column
+      expect(triggerSql).not.toContain('NEW.email :=');
+    });
+
+    it('should use batch_size in backfill SQL', () => {
+      const ops = planExpandColumn('users', 'email_lower', 'text', {
+        from: 'email',
+        transform: 'lower(email)',
+        batch_size: 5000,
+      });
+
+      const backfillSql = ops[2].sql;
+      expect(backfillSql).toContain('5000');
+    });
+
+    it('should use default batch size of 1000 when batch_size not specified', () => {
+      const ops = planExpandColumn('users', 'email_lower', 'text', {
+        from: 'email',
+        transform: 'lower(email)',
+      });
+
+      const backfillSql = ops[2].sql;
+      expect(backfillSql).toContain('1000');
+    });
   });
 
   describe('full expand/contract lifecycle', () => {
