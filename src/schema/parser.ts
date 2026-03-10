@@ -73,6 +73,7 @@ function parseColumnDef(raw: Record<string, unknown>, context: string): ColumnDe
   if (raw.unique !== undefined) col.unique = Boolean(raw.unique);
   if (raw.unique_name !== undefined) col.unique_name = String(raw.unique_name);
   if (raw.default !== undefined) col.default = String(raw.default);
+  if (raw.check !== undefined) col.check = String(raw.check);
   if (raw.comment !== undefined) col.comment = String(raw.comment);
   if (raw.generated !== undefined) col.generated = String(raw.generated);
 
@@ -247,6 +248,17 @@ export function parseTable(yamlStr: string): TableSchema {
   if (raw.seeds !== undefined) table.seeds = raw.seeds as Record<string, unknown>[];
   if (raw.mixins !== undefined) table.mixins = raw.mixins as string[];
   if (raw.comment !== undefined) table.comment = String(raw.comment);
+
+  // Column-level check sugar: generate CheckDef entries for columns with `check`
+  const columnChecks: CheckDef[] = table.columns
+    .filter((col) => col.check !== undefined)
+    .map((col) => ({
+      name: `chk_${table.table}_${col.name}`,
+      expression: col.check!,
+    }));
+  if (columnChecks.length > 0) {
+    table.checks = [...(table.checks || []), ...columnChecks];
+  }
 
   return table;
 }

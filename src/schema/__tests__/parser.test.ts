@@ -253,6 +253,69 @@ policies:
     expect(() => parseTable(yaml)).toThrow(/for/i);
   });
 
+  it('generates check constraint from column-level check sugar', () => {
+    const yaml = `
+table: users
+columns:
+  - name: email
+    type: text
+    check: "length(email) > 0"
+`;
+    const result = parseTable(yaml);
+    expect(result.columns[0].check).toBe('length(email) > 0');
+    expect(result.checks).toHaveLength(1);
+    expect(result.checks![0]).toEqual({
+      name: 'chk_users_email',
+      expression: 'length(email) > 0',
+    });
+  });
+
+  it('merges column-level check sugar with explicit checks', () => {
+    const yaml = `
+table: orders
+columns:
+  - name: total
+    type: numeric
+    check: "total >= 0"
+checks:
+  - name: valid_status
+    expression: "status IN ('active', 'inactive')"
+`;
+    const result = parseTable(yaml);
+    expect(result.checks).toHaveLength(2);
+    expect(result.checks![0]).toEqual({
+      name: 'valid_status',
+      expression: "status IN ('active', 'inactive')",
+    });
+    expect(result.checks![1]).toEqual({
+      name: 'chk_orders_total',
+      expression: 'total >= 0',
+    });
+  });
+
+  it('generates multiple column-level checks from multiple columns', () => {
+    const yaml = `
+table: products
+columns:
+  - name: price
+    type: numeric
+    check: "price > 0"
+  - name: quantity
+    type: integer
+    check: "quantity >= 0"
+`;
+    const result = parseTable(yaml);
+    expect(result.checks).toHaveLength(2);
+    expect(result.checks![0]).toEqual({
+      name: 'chk_products_price',
+      expression: 'price > 0',
+    });
+    expect(result.checks![1]).toEqual({
+      name: 'chk_products_quantity',
+      expression: 'quantity >= 0',
+    });
+  });
+
   it('throws on invalid index method', () => {
     const yaml = `
 table: t

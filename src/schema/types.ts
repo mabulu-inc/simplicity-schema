@@ -31,6 +31,7 @@ export interface ColumnDef {
   unique?: boolean;
   unique_name?: string;
   default?: string;
+  check?: string;
   comment?: string;
   references?: ForeignKeyRef;
   generated?: string;
