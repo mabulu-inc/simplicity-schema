@@ -530,17 +530,32 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     if (col.primary_key) def += ' PRIMARY KEY';
     if (col.nullable === false && !col.primary_key) def += ' NOT NULL';
     if (col.default !== undefined) def += ` DEFAULT ${col.default}`;
-    if (col.unique) def += ' UNIQUE';
+    if (col.unique && col.unique_name) {
+      // Named unique constraint — separate table-level constraint
+    } else if (col.unique) {
+      def += ' UNIQUE';
+    }
     if (col.generated) def += ` GENERATED ALWAYS AS (${col.generated}) STORED`;
     colDefs.push(def);
 
     if (col.references) fkColumns.push(col);
   }
 
+  // Column-level named unique constraints
+  for (const col of table.columns) {
+    if (col.unique && col.unique_name) {
+      colDefs.push(`CONSTRAINT "${col.unique_name}" UNIQUE ("${col.name}")`);
+    }
+  }
+
   // Composite primary key
   if (table.primary_key && table.primary_key.length > 0) {
     const pkCols = table.primary_key.map((c) => `"${c}"`).join(', ');
-    colDefs.push(`PRIMARY KEY (${pkCols})`);
+    if (table.primary_key_name) {
+      colDefs.push(`CONSTRAINT "${table.primary_key_name}" PRIMARY KEY (${pkCols})`);
+    } else {
+      colDefs.push(`PRIMARY KEY (${pkCols})`);
+    }
   }
 
   // Check constraints
@@ -591,7 +606,7 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
   // Foreign keys (phase 8) — added as NOT VALID
   for (const col of fkColumns) {
     const ref = col.references!;
-    const constraintName = `fk_${table.table}_${col.name}_${ref.table}`;
+    const constraintName = ref.name || `fk_${table.table}_${col.name}_${ref.table}`;
     const onDelete = ref.on_delete || 'NO ACTION';
     const onUpdate = ref.on_update || 'NO ACTION';
     let fkSql = `ALTER TABLE "${pgSchema}"."${table.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;
@@ -743,7 +758,7 @@ function alterTableOps(desired: TableSchema, existing: TableSchema, pgSchema: st
       // FK for new column
       if (col.references) {
         const ref = col.references;
-        const constraintName = `fk_${desired.table}_${col.name}_${ref.table}`;
+        const constraintName = ref.name || `fk_${desired.table}_${col.name}_${ref.table}`;
         const onDelete = ref.on_delete || 'NO ACTION';
         const onUpdate = ref.on_update || 'NO ACTION';
         let fkSql = `ALTER TABLE "${pgSchema}"."${desired.table}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${col.name}") REFERENCES "${pgSchema}"."${ref.table}" ("${ref.column}") ON DELETE ${onDelete} ON UPDATE ${onUpdate}`;

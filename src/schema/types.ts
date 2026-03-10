@@ -7,6 +7,7 @@ export type ForeignKeyAction = 'CASCADE' | 'SET NULL' | 'SET DEFAULT' | 'RESTRIC
 export interface ForeignKeyRef {
   table: string;
   column: string;
+  name?: string;
   on_delete?: ForeignKeyAction;
   on_update?: ForeignKeyAction;
   deferrable?: boolean;
@@ -28,6 +29,7 @@ export interface ColumnDef {
   nullable?: boolean;
   primary_key?: boolean;
   unique?: boolean;
+  unique_name?: string;
   default?: string;
   comment?: string;
   references?: ForeignKeyRef;
@@ -124,6 +126,7 @@ export interface TableSchema {
   table: string;
   columns: ColumnDef[];
   primary_key?: string[];
+  primary_key_name?: string;
   indexes?: IndexDef[];
   checks?: CheckDef[];
   unique_constraints?: UniqueConstraintDef[];

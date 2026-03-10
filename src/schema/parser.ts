@@ -71,6 +71,7 @@ function parseColumnDef(raw: Record<string, unknown>, context: string): ColumnDe
   if (raw.nullable !== undefined) col.nullable = Boolean(raw.nullable);
   if (raw.primary_key !== undefined) col.primary_key = Boolean(raw.primary_key);
   if (raw.unique !== undefined) col.unique = Boolean(raw.unique);
+  if (raw.unique_name !== undefined) col.unique_name = String(raw.unique_name);
   if (raw.default !== undefined) col.default = String(raw.default);
   if (raw.comment !== undefined) col.comment = String(raw.comment);
   if (raw.generated !== undefined) col.generated = String(raw.generated);
@@ -81,6 +82,7 @@ function parseColumnDef(raw: Record<string, unknown>, context: string): ColumnDe
       table: requireString(ref, 'table', `${context}.references`),
       column: requireString(ref, 'column', `${context}.references`),
     };
+    if (ref.name !== undefined) fk.name = String(ref.name);
     if (ref.on_delete !== undefined)
       fk.on_delete = validateEnum(String(ref.on_delete), FK_ACTIONS, 'on_delete', `${context}.references`);
     if (ref.on_update !== undefined)
@@ -215,6 +217,7 @@ export function parseTable(yamlStr: string): TableSchema {
   };
 
   if (raw.primary_key !== undefined) table.primary_key = raw.primary_key as string[];
+  if (raw.primary_key_name !== undefined) table.primary_key_name = String(raw.primary_key_name);
   if (raw.indexes !== undefined)
     table.indexes = (raw.indexes as Record<string, unknown>[]).map((idx, i) =>
       parseIndexDef(idx, `${ctx}.indexes[${i}]`),

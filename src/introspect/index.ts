@@ -272,6 +272,7 @@ export async function introspectTable(client: Client, tableName: string, schema:
     compositePk,
     tableGrants,
     rlsInfo,
+    uniqueConstraints,
   ] = await Promise.all([
     getColumns(client, tableName, schema),
     getIndexes(client, tableName, schema),
@@ -284,6 +285,7 @@ export async function introspectTable(client: Client, tableName: string, schema:
     getCompositePrimaryKey(client, tableName, schema),
     getTableLevelGrants(client, tableName, schema),
     getRlsStatus(client, tableName, schema),
+    getUniqueConstraints(client, tableName, schema),
   ]);
 
   // Merge FK info into columns
@@ -296,6 +298,11 @@ export async function introspectTable(client: Client, tableName: string, schema:
         on_delete: fk.on_delete,
         on_update: fk.on_update,
       };
+      // Only set name if it differs from the default PostgreSQL pattern (table_column_fkey)
+      const defaultFkName = `${tableName}_${fk.column}_fkey`;
+      if (fk.constraint_name !== defaultFkName) {
+        ref.name = fk.constraint_name;
+      }
       if (fk.deferrable) {
         ref.deferrable = true;
         ref.initially_deferred = fk.initially_deferred;
@@ -304,12 +311,27 @@ export async function introspectTable(client: Client, tableName: string, schema:
     }
   }
 
+  // Merge single-column unique constraint info into columns
+  for (const uc of uniqueConstraints) {
+    if (uc.columns.length === 1) {
+      const col = columns.find((c) => c.name === uc.columns[0]);
+      if (col) {
+        col.unique = true;
+        const defaultName = `${tableName}_${uc.columns[0]}_key`;
+        if (uc.constraint_name !== defaultName) {
+          col.unique_name = uc.constraint_name;
+        }
+      }
+    }
+  }
+
   const result: TableSchema = {
     table: tableName,
     columns,
   };
 
-  if (compositePk.length > 1) result.primary_key = compositePk;
+  if (compositePk.columns.length > 1) result.primary_key = compositePk.columns;
+  if (compositePk.constraintName) result.primary_key_name = compositePk.constraintName;
   if (indexes.length > 0) result.indexes = indexes;
   if (checks.length > 0) result.checks = checks;
   if (triggers.length > 0) result.triggers = triggers;
@@ -326,6 +348,7 @@ export async function introspectTable(client: Client, tableName: string, schema:
 // ─── Internal helpers ───────────────────────────────────────────
 
 interface FKInfo {
+  constraint_name: string;
   column: string;
   foreign_table: string;
   foreign_column: string;
@@ -343,9 +366,13 @@ const FK_ACTION_MAP: Record<string, ForeignKeyAction> = {
   d: 'SET DEFAULT',
 };
 
-async function getCompositePrimaryKey(client: Client, table: string, schema: string): Promise<string[]> {
+async function getCompositePrimaryKey(
+  client: Client,
+  table: string,
+  schema: string,
+): Promise<{ columns: string[]; constraintName: string | undefined }> {
   const result = await client.query(
-    `SELECT a.attname AS column_name
+    `SELECT a.attname AS column_name, con.conname AS constraint_name
      FROM pg_catalog.pg_constraint con
      JOIN pg_catalog.pg_class cls ON cls.oid = con.conrelid
      JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
@@ -357,7 +384,12 @@ async function getCompositePrimaryKey(client: Client, table: string, schema: str
      ORDER BY array_position(con.conkey, a.attnum)`,
     [table, schema],
   );
-  return result.rows.map((r: Record<string, unknown>) => r.column_name as string);
+  const columns = result.rows.map((r: Record<string, unknown>) => r.column_name as string);
+  const rawName = result.rows.length > 0 ? (result.rows[0].constraint_name as string) : undefined;
+  // Only report non-default names (default is "table_pkey")
+  const defaultName = `${table}_pkey`;
+  const constraintName = rawName && rawName !== defaultName ? rawName : undefined;
+  return { columns, constraintName };
 }
 
 async function getColumns(client: Client, table: string, schema: string): Promise<ColumnDef[]> {
@@ -501,6 +533,7 @@ async function getChecks(client: Client, table: string, schema: string): Promise
 async function getForeignKeys(client: Client, table: string, schema: string): Promise<FKInfo[]> {
   const result = await client.query(
     `SELECT
+       con.conname AS constraint_name,
        a.attname AS column,
        cf.relname AS foreign_table,
        af.attname AS foreign_column,
@@ -522,6 +555,7 @@ async function getForeignKeys(client: Client, table: string, schema: string): Pr
   );
 
   return result.rows.map((r: Record<string, unknown>) => ({
+    constraint_name: r.constraint_name as string,
     column: r.column as string,
     foreign_table: r.foreign_table as string,
     foreign_column: r.foreign_column as string,
@@ -722,4 +756,30 @@ async function getTableComment(client: Client, table: string, schema: string): P
   );
   const comment = result.rows[0]?.comment;
   return comment || undefined;
+}
+
+interface UniqueConstraintInfo {
+  constraint_name: string;
+  columns: string[];
+}
+
+async function getUniqueConstraints(client: Client, table: string, schema: string): Promise<UniqueConstraintInfo[]> {
+  const result = await client.query(
+    `SELECT con.conname AS constraint_name,
+            array_agg(a.attname::text ORDER BY array_position(con.conkey, a.attnum)) AS columns
+     FROM pg_catalog.pg_constraint con
+     JOIN pg_catalog.pg_class cls ON cls.oid = con.conrelid
+     JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
+     JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+     WHERE con.contype = 'u'
+       AND cls.relname = $1
+       AND ns.nspname = $2
+     GROUP BY con.conname
+     ORDER BY con.conname`,
+    [table, schema],
+  );
+  return result.rows.map((r: Record<string, unknown>) => ({
+    constraint_name: r.constraint_name as string,
+    columns: r.columns as string[],
+  }));
 }

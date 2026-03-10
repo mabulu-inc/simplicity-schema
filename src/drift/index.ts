@@ -225,7 +225,7 @@ function driftTables(desired: TableSchema[], actual: Map<string, TableSchema>): 
     if (!at) {
       items.push({ type: 'table', object: dt.table, status: 'missing_in_db' });
     } else {
-      items.push(...driftCompositePk(dt.table, dt.primary_key, at.primary_key));
+      items.push(...driftCompositePk(dt.table, dt, at));
       items.push(...driftColumns(dt.table, dt.columns, at.columns));
       items.push(...driftForeignKeys(dt.table, dt.columns, at.columns));
       items.push(...driftIndexes(dt.table, dt.indexes || [], at.indexes || []));
@@ -276,42 +276,54 @@ function driftRls(desired: TableSchema, actual: TableSchema): DriftItem[] {
   return items;
 }
 
-function driftCompositePk(table: string, desired?: string[], actual?: string[]): DriftItem[] {
+function driftCompositePk(table: string, desiredTable: TableSchema, actualTable: TableSchema): DriftItem[] {
+  const desired = desiredTable.primary_key;
+  const actual = actualTable.primary_key;
+  const items: DriftItem[] = [];
   const dPk = (desired || []).join(',');
   const aPk = (actual || []).join(',');
-  if (dPk === aPk) return [];
-  if (dPk && !aPk) {
-    return [
-      {
+  if (dPk !== aPk) {
+    if (dPk && !aPk) {
+      items.push({
         type: 'constraint',
         object: `${table}.primary_key`,
         status: 'missing_in_db',
         expected: `(${desired!.join(', ')})`,
         detail: `Composite PK expected: (${desired!.join(', ')})`,
-      },
-    ];
-  }
-  if (!dPk && aPk) {
-    return [
-      {
+      });
+    } else if (!dPk && aPk) {
+      items.push({
         type: 'constraint',
         object: `${table}.primary_key`,
         status: 'missing_in_yaml',
         actual: `(${actual!.join(', ')})`,
         detail: `Composite PK in DB: (${actual!.join(', ')})`,
-      },
-    ];
+      });
+    } else {
+      items.push({
+        type: 'constraint',
+        object: `${table}.primary_key`,
+        status: 'different',
+        expected: `(${desired!.join(', ')})`,
+        actual: `(${actual!.join(', ')})`,
+        detail: `Composite PK differs: expected (${desired!.join(', ')}), actual (${actual!.join(', ')})`,
+      });
+    }
   }
-  return [
-    {
+  // PK constraint name drift
+  const dName = desiredTable.primary_key_name;
+  const aName = actualTable.primary_key_name;
+  if (dName && dName !== aName) {
+    items.push({
       type: 'constraint',
       object: `${table}.primary_key`,
       status: 'different',
-      expected: `(${desired!.join(', ')})`,
-      actual: `(${actual!.join(', ')})`,
-      detail: `Composite PK differs: expected (${desired!.join(', ')}), actual (${actual!.join(', ')})`,
-    },
-  ];
+      expected: dName,
+      actual: aName ?? '(default)',
+      detail: `PK constraint name differs: expected ${dName}, actual ${aName ?? '(default)'}`,
+    });
+  }
+  return items;
 }
 
 function driftColumns(table: string, desired: ColumnDef[], actual: ColumnDef[]): DriftItem[] {
@@ -359,6 +371,17 @@ function driftColumns(table: string, desired: ColumnDef[], actual: ColumnDef[]):
           expected: dDefault ?? '(none)',
           actual: aDefault ?? '(none)',
           detail: `default: expected ${dDefault ?? '(none)'}, actual ${aDefault ?? '(none)'}`,
+        });
+      }
+      // Unique constraint name
+      if (dc.unique_name && dc.unique_name !== ac.unique_name) {
+        items.push({
+          type: 'constraint',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          expected: dc.unique_name,
+          actual: ac.unique_name ?? '(default)',
+          detail: `unique_name differs: expected ${dc.unique_name}, actual ${ac.unique_name ?? '(default)'}`,
         });
       }
       // Generated column expression
@@ -679,6 +702,15 @@ function driftForeignKeys(table: string, desired: ColumnDef[], actual: ColumnDef
             detail: `FK initially_deferred differs: expected ${dDeferred}, actual ${aDeferred}`,
           });
         }
+      }
+      // FK constraint name drift
+      if (dRef.name && dRef.name !== aRef.name) {
+        items.push({
+          type: 'constraint',
+          object: `${table}.${dc.name}`,
+          status: 'different',
+          detail: `FK name differs: expected ${dRef.name}, actual ${aRef.name ?? '(default)'}`,
+        });
       }
     }
   }
