@@ -30,6 +30,31 @@ No migration files to manage. No up/down scripts. Just declare the end state.
 
 ## Install
 
+This package is published to the GitHub Packages registry. You need to configure npm/pnpm to use it for the `@mabulu-inc` scope.
+
+### 1. Create a personal access token
+
+Create a [GitHub personal access token](https://github.com/settings/tokens) (classic) with `read:packages` scope.
+
+### 2. Configure `.npmrc`
+
+Add to your project's `.npmrc` (or `~/.npmrc` for global config):
+
+```ini
+@mabulu-inc:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+Set the token in your environment:
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+```
+
+### 3. Install
+
 ```bash
 npm install @mabulu-inc/simplicity-schema
+# or
+pnpm add @mabulu-inc/simplicity-schema
 ```

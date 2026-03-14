@@ -3,6 +3,10 @@ title: Commands
 description: All CLI commands and their usage.
 ---
 
+:::note
+All examples use `npx`. You can also use `pnpm exec simplicity-schema` or install globally.
+:::
+
 ## Migration
 
 ### `simplicity-schema run`
@@ -10,7 +14,7 @@ description: All CLI commands and their usage.
 Run full migration pipeline: pre-scripts, schema migration, post-scripts.
 
 ```bash
-simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
+npx simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ### `simplicity-schema run pre`
@@ -30,7 +34,7 @@ Run only post-scripts (SQL files in `schema/post/`).
 Dry-run. Shows planned operations without executing. Equivalent to `run --dry-run`.
 
 ```bash
-simplicity-schema plan --db postgresql://user:pass@localhost:5432/mydb
+npx simplicity-schema plan --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ### `simplicity-schema validate`
@@ -42,7 +46,7 @@ Execute the migration plan inside a transaction that is always rolled back. Veri
 Mark the current database state as baseline. Records all current schema files in the history table without running any migrations. Use when adopting simplicity-schema on an existing database.
 
 ```bash
-simplicity-schema baseline --db postgresql://user:pass@localhost:5432/mydb
+npx simplicity-schema baseline --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## Analysis
@@ -52,7 +56,7 @@ simplicity-schema baseline --db postgresql://user:pass@localhost:5432/mydb
 Compare YAML definitions to the live database. Reports differences without making changes.
 
 ```bash
-simplicity-schema drift --db postgresql://user:pass@localhost:5432/mydb
+npx simplicity-schema drift --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ### `simplicity-schema drift --apply`
@@ -74,8 +78,8 @@ Show migration status: number of applied files, pending changes, and history.
 Introspect an existing database and generate YAML files.
 
 ```bash
-simplicity-schema generate --db postgresql://user:pass@localhost:5432/mydb --output-dir ./schema
-simplicity-schema generate --db postgresql://... --seeds users,roles  # include seed data
+npx simplicity-schema generate --db postgresql://user:pass@localhost:5432/mydb --output-dir ./schema
+npx simplicity-schema generate --db postgresql://... --seeds users,roles  # include seed data
 ```
 
 ### `simplicity-schema sql`
@@ -83,7 +87,7 @@ simplicity-schema generate --db postgresql://... --seeds users,roles  # include 
 Generate a standalone `.sql` migration file from the current plan.
 
 ```bash
-simplicity-schema sql --output migration.sql --db postgresql://user:pass@localhost:5432/mydb
+npx simplicity-schema sql --output migration.sql --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 Output includes transaction grouping, `CONCURRENTLY` operations outside transactions, phase comments, and blocked operations as comments.
@@ -93,7 +97,7 @@ Output includes transaction grouping, `CONCURRENTLY` operations outside transact
 Generate a Mermaid ER diagram from YAML definitions.
 
 ```bash
-simplicity-schema erd --output schema.mmd
+npx simplicity-schema erd --output schema.mmd
 ```
 
 ### `simplicity-schema init`
@@ -101,7 +105,7 @@ simplicity-schema erd --output schema.mmd
 Create the standard project directory structure.
 
 ```bash
-simplicity-schema init --dir ./schema
+npx simplicity-schema init --dir ./schema
 ```
 
 ### `simplicity-schema new pre|post|mixin`
@@ -109,9 +113,9 @@ simplicity-schema init --dir ./schema
 Create timestamped templates.
 
 ```bash
-simplicity-schema new pre --name cleanup
-simplicity-schema new post --name refresh-views
-simplicity-schema new mixin --name timestamps
+npx simplicity-schema new pre --name cleanup
+npx simplicity-schema new post --name refresh-views
+npx simplicity-schema new mixin --name timestamps
 ```
 
 ### `simplicity-schema docs`

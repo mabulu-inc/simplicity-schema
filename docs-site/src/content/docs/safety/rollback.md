@@ -13,7 +13,7 @@ Before each migration run, simplicity-schema captures a `MigrationSnapshot` in `
 
 ```bash
 # Rollback the last migration
-simplicity-schema down --db postgresql://user:pass@localhost:5432/mydb
+npx simplicity-schema down --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## Reversible operations

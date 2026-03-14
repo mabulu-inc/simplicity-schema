@@ -32,10 +32,10 @@ When a blocked operation is encountered:
 
 ```bash
 # See what would be blocked
-simplicity-schema plan
+npx simplicity-schema plan
 
 # Allow destructive operations
-simplicity-schema run --allow-destructive
+npx simplicity-schema run --allow-destructive
 ```
 
 ## Advisory locking
