@@ -1553,7 +1553,7 @@ function diffMaterializedViews(
         type: 'create_materialized_view',
         phase: 10,
         objectName: mv.name,
-        sql: `CREATE MATERIALIZED VIEW "${pgSchema}"."${mv.name}" AS ${mv.query}`,
+        sql: `CREATE MATERIALIZED VIEW IF NOT EXISTS "${pgSchema}"."${mv.name}" AS ${mv.query}`,
         destructive: false,
       });
     } else {
@@ -1570,7 +1570,7 @@ function diffMaterializedViews(
           type: 'create_materialized_view',
           phase: 10,
           objectName: mv.name,
-          sql: `CREATE MATERIALIZED VIEW "${pgSchema}"."${mv.name}" AS ${mv.query}`,
+          sql: `CREATE MATERIALIZED VIEW IF NOT EXISTS "${pgSchema}"."${mv.name}" AS ${mv.query}`,
           destructive: false,
         });
         ops.push({
