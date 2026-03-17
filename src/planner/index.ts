@@ -592,7 +592,7 @@ function createTableOps(table: TableSchema, pgSchema: string): Operation[] {
     type: 'create_table',
     phase: 6,
     objectName: table.table,
-    sql: `CREATE TABLE "${pgSchema}"."${table.table}" (\n  ${colDefs.join(',\n  ')}\n)`,
+    sql: `CREATE TABLE IF NOT EXISTS "${pgSchema}"."${table.table}" (\n  ${colDefs.join(',\n  ')}\n)`,
     destructive: false,
   });
 
