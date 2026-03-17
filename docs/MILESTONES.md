@@ -171,7 +171,7 @@
 
 - [x] T-086: Fix trigger WHEN clause introspection for OLD/NEW expressions — $0.48
 
-## 28 — Idempotent Pipeline Operations ($4.46)
+## 28 — Idempotent Pipeline Operations ($4.90)
 
 - [x] T-087: Use CREATE ROLE IF NOT EXISTS in role pipeline — $0.34
 - [x] T-088: Idempotent enum creation — $0.43
@@ -181,6 +181,6 @@
 - [x] T-092: Idempotent RLS policy creation — $0.37
 - [x] T-093: Idempotent index and unique constraint creation — $1.05
 - [x] T-094: Idempotent foreign key and check constraint creation — $1.16
-- [ ] T-095: Document idempotent pipeline guarantee
+- [x] T-095: Document idempotent pipeline guarantee — $0.44
 
-**Grand Total: $82.08**
+**Grand Total: $82.52**
