@@ -575,6 +575,10 @@ async function getForeignKeys(client: Client, table: string, schema: string): Pr
 }
 
 async function getTriggers(client: Client, table: string, schema: string): Promise<TriggerDef[]> {
+  // Use pg_get_triggerdef() instead of pg_get_expr(tgqual, tgrelid) because
+  // pg_get_expr cannot decompile expressions containing multiple relation
+  // variables (e.g. WHEN (OLD.* IS DISTINCT FROM NEW.*)) — it throws
+  // "expression contains variables of more than one relation".
   const result = await client.query(
     `SELECT
        t.tgname AS name,
@@ -589,7 +593,7 @@ async function getTriggers(client: Client, table: string, schema: string): Promi
        CASE WHEN (t.tgtype & 32) != 0 THEN true ELSE false END AS on_truncate,
        CASE WHEN (t.tgtype & 1) != 0 THEN 'ROW' ELSE 'STATEMENT' END AS for_each,
        p.proname AS function_name,
-       pg_get_expr(t.tgqual, t.tgrelid) AS when_clause
+       pg_get_triggerdef(t.oid) AS full_definition
      FROM pg_catalog.pg_trigger t
      JOIN pg_catalog.pg_class cls ON cls.oid = t.tgrelid
      JOIN pg_catalog.pg_namespace ns ON ns.oid = cls.relnamespace
@@ -615,9 +619,35 @@ async function getTriggers(client: Client, table: string, schema: string): Promi
       function: r.function_name as string,
       for_each: r.for_each as TriggerForEach,
     };
-    if (r.when_clause) trigger.when = r.when_clause as string;
+
+    const whenClause = extractWhenClause(r.full_definition as string);
+    if (whenClause) trigger.when = whenClause;
+
     return trigger;
   });
+}
+
+/**
+ * Extract the WHEN clause from a pg_get_triggerdef() output string.
+ *
+ * pg_get_triggerdef returns strings like:
+ *   CREATE TRIGGER trg_name BEFORE UPDATE ON schema.table
+ *     FOR EACH ROW WHEN ((old.* IS DISTINCT FROM new.*))
+ *     EXECUTE FUNCTION schema.fn()
+ *
+ * We extract the expression inside "WHEN ((...))".
+ */
+function extractWhenClause(triggerDef: string): string | undefined {
+  // Match WHEN followed by a parenthesized expression, before EXECUTE
+  const match = triggerDef.match(/\bWHEN\s*\((.+)\)\s*EXECUTE\b/is);
+  if (!match) return undefined;
+  let expr = match[1].trim();
+  // pg_get_triggerdef wraps the expression in an extra set of parens: WHEN ((expr))
+  // Strip the outer parens if present
+  if (expr.startsWith('(') && expr.endsWith(')')) {
+    expr = expr.slice(1, -1).trim();
+  }
+  return expr;
 }
 
 async function getPolicies(client: Client, table: string, schema: string): Promise<PolicyDef[]> {
