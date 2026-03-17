@@ -2940,4 +2940,74 @@ describe('Executor', () => {
       }
     });
   });
+
+  describe('idempotent enum creation', () => {
+    let testSchema: string;
+
+    beforeEach(async () => {
+      testSchema = uniqueSchema();
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA "${testSchema}"`);
+      } finally {
+        client.release();
+      }
+    });
+
+    afterEach(async () => {
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`);
+      } finally {
+        client.release();
+      }
+    });
+
+    it('should execute create_enum twice without error (idempotent)', async () => {
+      const values = "'active', 'inactive'";
+      const enumName = `"${testSchema}"."status"`;
+      const sql = `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE t.typname = 'status' AND n.nspname = '${testSchema}') THEN CREATE TYPE ${enumName} AS ENUM (${values}); END IF; END $$`;
+
+      const ops: Operation[] = [
+        {
+          type: 'create_enum',
+          phase: 3,
+          objectName: 'status',
+          sql,
+          destructive: false,
+        },
+      ];
+
+      // First execution should succeed
+      const result1 = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result1.executed).toBe(1);
+
+      // Second execution should also succeed (idempotent)
+      const result2 = await execute({
+        connectionString: DATABASE_URL,
+        operations: ops,
+        logger,
+      });
+      expect(result2.executed).toBe(1);
+
+      // Verify the enum exists
+      const pool = getPool(DATABASE_URL);
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `SELECT typname FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE t.typname = 'status' AND n.nspname = $1`,
+          [testSchema],
+        );
+        expect(res.rows).toHaveLength(1);
+      } finally {
+        client.release();
+      }
+    });
+  });
 });

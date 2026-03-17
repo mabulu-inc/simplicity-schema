@@ -110,6 +110,23 @@ describe('Planner', () => {
       expect(findOps(result.operations, 'create_enum')).toHaveLength(0);
     });
 
+    it('generates idempotent enum creation SQL using DO block', () => {
+      const desired = emptyDesired();
+      desired.enums = [{ name: 'status', values: ['active', 'inactive'] }];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_enum');
+      expect(ops).toHaveLength(1);
+      const sql = ops[0].sql;
+      // Must use a DO block with pg_type existence check
+      expect(sql).toContain('DO $$');
+      expect(sql).toContain('pg_type');
+      expect(sql).toContain('IF NOT EXISTS');
+      expect(sql).toContain('CREATE TYPE "status" AS ENUM');
+      expect(sql).toContain("'active'");
+      expect(sql).toContain("'inactive'");
+      expect(sql).toContain('END $$');
+    });
+
     it('adds comment for new enum', () => {
       const desired = emptyDesired();
       desired.enums = [{ name: 'status', values: ['active'], comment: 'Status enum' }];

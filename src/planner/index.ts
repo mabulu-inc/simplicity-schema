@@ -248,13 +248,13 @@ function diffEnums(desired: EnumSchema[], actual: Map<string, EnumSchema>, _pgSc
   for (const desiredEnum of desired) {
     const existing = actual.get(desiredEnum.name);
     if (!existing) {
-      // Create new enum
+      // Create new enum (idempotent — PostgreSQL lacks CREATE TYPE IF NOT EXISTS)
       const values = desiredEnum.values.map((v) => `'${v}'`).join(', ');
       ops.push({
         type: 'create_enum',
         phase: 3,
         objectName: desiredEnum.name,
-        sql: `CREATE TYPE "${desiredEnum.name}" AS ENUM (${values})`,
+        sql: `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '${desiredEnum.name}') THEN CREATE TYPE "${desiredEnum.name}" AS ENUM (${values}); END IF; END $$`,
         destructive: false,
       });
       if (desiredEnum.comment) {
