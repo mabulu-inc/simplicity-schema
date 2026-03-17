@@ -158,7 +158,7 @@ describe('Planner', () => {
   });
 
   describe('roles', () => {
-    it('creates new role', () => {
+    it('creates new role with idempotent DO block', () => {
       const desired = emptyDesired();
       desired.roles = [{ role: 'app_readonly', login: false }];
       const result = buildPlan(desired, emptyActual());
@@ -166,6 +166,11 @@ describe('Planner', () => {
       expect(ops).toHaveLength(1);
       expect(ops[0].sql).toContain('app_readonly');
       expect(ops[0].sql).toContain('NOLOGIN');
+      // Must use DO block for idempotency (no 42710 error if role exists)
+      expect(ops[0].sql).toMatch(/DO \$\$ BEGIN/);
+      expect(ops[0].sql).toMatch(/IF NOT EXISTS.*pg_roles.*rolname/);
+      expect(ops[0].sql).toMatch(/CREATE ROLE "app_readonly"/);
+      expect(ops[0].sql).toMatch(/END IF;.*END \$\$/);
     });
 
     it('alters role when attributes differ', () => {
@@ -231,7 +236,7 @@ describe('Planner', () => {
       expect(ops[0].sql).toContain('GRANT "group_b" TO "app_user"');
     });
 
-    it('creates role with all attributes', () => {
+    it('creates role with all attributes using idempotent DO block', () => {
       const desired = emptyDesired();
       desired.roles = [
         {
@@ -257,6 +262,9 @@ describe('Planner', () => {
       expect(ops[0].sql).toContain('BYPASSRLS');
       expect(ops[0].sql).toContain('REPLICATION');
       expect(ops[0].sql).toContain('CONNECTION LIMIT 10');
+      // Must use DO block for idempotency
+      expect(ops[0].sql).toMatch(/DO \$\$ BEGIN/);
+      expect(ops[0].sql).toMatch(/IF NOT EXISTS/);
     });
 
     it('alters role attributes correctly', () => {

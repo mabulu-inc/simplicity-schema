@@ -306,11 +306,12 @@ function diffRoles(desired: RoleSchema[], actual: Map<string, RoleSchema>): Oper
     const existing = actual.get(desiredRole.role);
     if (!existing) {
       const attrs = buildRoleAttributes(desiredRole);
+      const createStmt = `CREATE ROLE "${desiredRole.role}"${attrs ? ' ' + attrs : ''}`;
       ops.push({
         type: 'create_role',
         phase: 4,
         objectName: desiredRole.role,
-        sql: `CREATE ROLE "${desiredRole.role}"${attrs ? ' ' + attrs : ''}`,
+        sql: `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${desiredRole.role}') THEN ${createStmt}; END IF; END $$`,
         destructive: false,
       });
     } else {
