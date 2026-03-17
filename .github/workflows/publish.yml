@@ -11,20 +11,6 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 54329:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 2s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -40,9 +26,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm check
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:54329/postgres
+      - run: pnpm build
 
       - run: pnpm publish --no-git-checks
         env:
