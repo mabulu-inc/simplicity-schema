@@ -1414,7 +1414,7 @@ function createPolicyOp(table: string, policy: PolicyDef, pgSchema: string): Ope
   const cmd = policy.for || 'ALL';
   const permissive = policy.permissive !== false ? 'PERMISSIVE' : 'RESTRICTIVE';
   const toClause = policy.to.toUpperCase() === 'PUBLIC' ? 'PUBLIC' : `"${policy.to}"`;
-  let sql = `CREATE POLICY "${policy.name}" ON "${pgSchema}"."${table}" AS ${permissive} FOR ${cmd} TO ${toClause}`;
+  let sql = `DROP POLICY IF EXISTS "${policy.name}" ON "${pgSchema}"."${table}"; CREATE POLICY "${policy.name}" ON "${pgSchema}"."${table}" AS ${permissive} FOR ${cmd} TO ${toClause}`;
   if (policy.using) sql += ` USING (${policy.using})`;
   if (policy.check) sql += ` WITH CHECK (${policy.check})`;
   return {
