@@ -1,0 +1,10 @@
+{
+  "language": "TypeScript",
+  "packageManager": "pnpm",
+  "testingFramework": "Vitest",
+  "qualityCheck": "pnpm check",
+  "testCommand": "pnpm test",
+  "agent": "claude",
+  "fileNaming": "kebab-case",
+  "database": "PostgreSQL"
+}

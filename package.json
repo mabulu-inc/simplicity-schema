@@ -29,7 +29,7 @@
     "test:coverage": "vitest run --coverage",
     "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm build && pnpm test:coverage",
     "milestones": "bash scripts/update-milestones.sh",
-    "ralph": "bash scripts/ralph.sh",
+    "ralph": "npx @mabulu-inc/ralph loop",
     "ralph:kill": "bash scripts/ralph-kill.sh",
     "shas": "bash scripts/update-shas.sh",
     "cost": "bash scripts/calc-cost.sh",
