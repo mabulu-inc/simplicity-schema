@@ -327,11 +327,36 @@ query: |
   SELECT id, email, name
   FROM users
   WHERE deleted_at IS NULL
+options:
+  security_barrier: true
+  check_option: cascaded
+triggers:
+  - name: trg_insert_active_users
+    timing: INSTEAD OF
+    events: [INSERT]
+    function: fn_insert_active_user
+    for_each: ROW
 grants:
   - to: app_readonly
     privileges: [SELECT]
 comment: 'Users who have not been soft-deleted'
 ```
+
+#### View Options
+
+The optional `options` field generates a `WITH (...)` clause on the view. Common PostgreSQL view options:
+
+- `security_barrier` (boolean) — Prevents leaking data through user-defined functions in `WHERE` clauses
+- `security_invoker` (boolean) — Access checks use the invoking user's permissions, not the view owner's
+- `check_option` (`"local"` | `"cascaded"`) — Enforces that `INSERT`/`UPDATE` through the view satisfy the view's `WHERE` clause
+
+#### View Triggers (INSTEAD OF)
+
+Views support `INSTEAD OF` triggers, which intercept `INSERT`, `UPDATE`, or `DELETE` operations on the view and execute custom logic instead. This enables updatable views backed by arbitrary function logic.
+
+- Trigger definitions use the same `TriggerDef` format as table triggers (§4.1)
+- Only `INSTEAD OF` timing is valid for view triggers; `BEFORE` and `AFTER` are not supported by PostgreSQL on views
+- The trigger diff engine (create/drop/recreate on change) applies to view triggers the same way it does for table triggers
 
 ### 4.5 Materialized Views
 
@@ -764,7 +789,7 @@ interface DriftItem {
 - **Constraints**: checks (expression), foreign keys (actions, deferrable, initially_deferred), unique constraints
 - **Enums**: existence, values (order matters)
 - **Functions**: existence, body, args, return type, security, volatility, parallel, strict, leakproof, cost, rows, set params
-- **Views**: existence, query
+- **Views**: existence, query, options, triggers
 - **Materialized views**: existence, query
 - **Roles**: existence, all attributes (login, superuser, createdb, createrole, inherit, bypassrls, replication, connection_limit), group memberships
 - **Grants**: table-level, column-level, sequence, function, with_grant_option
