@@ -1519,6 +1519,14 @@ function diffViews(desired: ViewSchema[], actual: Map<string, ViewSchema>, pgSch
       destructive: false,
     });
 
+    // Diff triggers on the view (INSTEAD OF triggers)
+    const existingView = actual.get(view.name);
+    const desiredTriggers = view.triggers || [];
+    const existingTriggers = existingView?.triggers || [];
+    if (desiredTriggers.length > 0 || existingTriggers.length > 0) {
+      ops.push(...diffTriggers(view.name, desiredTriggers, existingTriggers, pgSchema));
+    }
+
     if (view.comment) {
       ops.push({
         type: 'set_comment',
@@ -1545,8 +1553,13 @@ function diffViews(desired: ViewSchema[], actual: Map<string, ViewSchema>, pgSch
 
   // Drop views not in desired
   const desiredNames = new Set(desired.map((v) => v.name));
-  for (const [name] of actual) {
+  for (const [name, existingView] of actual) {
     if (!desiredNames.has(name)) {
+      // Drop triggers on the view before dropping the view itself
+      const existingTriggers = existingView.triggers || [];
+      if (existingTriggers.length > 0) {
+        ops.push(...diffTriggers(name, [], existingTriggers, pgSchema));
+      }
       ops.push({
         type: 'drop_view',
         phase: 9,

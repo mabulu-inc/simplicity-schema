@@ -379,6 +379,10 @@ export function parseView(yamlStr: string): ViewSchema | MaterializedViewSchema 
   if (raw.options !== undefined) {
     view.options = raw.options as Record<string, string | boolean>;
   }
+  if (raw.triggers !== undefined)
+    view.triggers = (raw.triggers as Record<string, unknown>[]).map((t, i) =>
+      parseTriggerDef(t, `${ctx}.triggers[${i}]`),
+    );
   if (raw.grants !== undefined)
     view.grants = (raw.grants as Record<string, unknown>[]).map((g, i) => parseGrantDef(g, `${ctx}.grants[${i}]`));
   const viewComment = resolveComment(raw);

@@ -184,10 +184,19 @@ export async function getExistingViews(client: Client, schema: string): Promise<
      ORDER BY viewname`,
     [schema],
   );
-  return result.rows.map((r: { name: string; query: string }) => ({
-    name: r.name,
-    query: r.query.trim(),
-  }));
+  const views: ViewSchema[] = [];
+  for (const r of result.rows as { name: string; query: string }[]) {
+    const view: ViewSchema = {
+      name: r.name,
+      query: r.query.trim(),
+    };
+    const triggers = await getTriggers(client, r.name, schema);
+    if (triggers.length > 0) {
+      view.triggers = triggers;
+    }
+    views.push(view);
+  }
+  return views;
 }
 
 /** Get all materialized views in a schema. */
