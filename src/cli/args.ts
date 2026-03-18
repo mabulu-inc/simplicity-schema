@@ -40,6 +40,8 @@ export interface ParsedArgs {
   name?: string;
   /** --apply flag for drift */
   apply?: boolean;
+  /** --help was passed after a command (per-command help) */
+  helpRequested?: boolean;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -54,6 +56,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let name: string | undefined;
   let apply: boolean | undefined;
   let newSubcommand: NewSubcommand | undefined;
+  let helpRequested: boolean | undefined;
   let i = 0;
 
   // Check for --help or --version before command
@@ -165,7 +168,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         break;
       case '--help':
       case '-h':
-        // Already handled above
+        helpRequested = true;
         break;
       default:
         // Ignore unknown flags
@@ -182,6 +185,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (seeds) result.seeds = seeds;
   if (name) result.name = name;
   if (apply) result.apply = apply;
+  if (helpRequested) result.helpRequested = helpRequested;
   return result;
 }
 

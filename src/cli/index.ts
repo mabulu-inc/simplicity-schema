@@ -5,7 +5,7 @@
  */
 
 import { parseArgs } from './args.js';
-import { getHelpText, getVersionText } from './help.js';
+import { getHelpText, getVersionText, getCommandHelpText } from './help.js';
 import { runPipeline, initProject, getStatus, runBaseline, buildDesiredAndActual, getPlan } from './pipeline.js';
 import { resolveConfig } from '../core/config.js';
 import { createLogger } from '../core/logger.js';
@@ -33,6 +33,12 @@ async function main(): Promise<void> {
 
   if (parsed.command === 'version') {
     console.log(getVersionText());
+    return;
+  }
+
+  if (parsed.helpRequested) {
+    const helpText = getCommandHelpText(parsed.command, parsed.subcommand);
+    console.log(helpText);
     return;
   }
 
