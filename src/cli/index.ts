@@ -282,7 +282,7 @@ async function main(): Promise<void> {
               materializedViews: matViewList,
               roles: roleList,
             },
-            parsed.output,
+            parsed.output ?? config.baseDir,
           );
           if (config.json) {
             console.log(JSON.stringify(files, null, 2));
