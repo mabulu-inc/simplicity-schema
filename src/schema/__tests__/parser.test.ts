@@ -644,6 +644,46 @@ comment: "Aggregated user order statistics"
     expect(() => parseView('query: "SELECT 1"')).toThrow(/name/i);
     expect(() => parseView('name: v')).toThrow(/query/i);
   });
+
+  it('parses view with options (WITH clause)', () => {
+    const yaml = `
+name: secure_view
+query: |
+  SELECT id, email FROM users
+options:
+  security_barrier: true
+  check_option: cascaded
+`;
+    const result = parseView(yaml);
+    expect(result.materialized).toBeUndefined();
+    expect(result.name).toBe('secure_view');
+    expect((result as { options?: Record<string, string | boolean> }).options).toEqual({
+      security_barrier: true,
+      check_option: 'cascaded',
+    });
+  });
+
+  it('omits options when not specified', () => {
+    const yaml = `
+name: simple_view
+query: "SELECT 1"
+`;
+    const result = parseView(yaml);
+    expect((result as { options?: Record<string, string | boolean> }).options).toBeUndefined();
+  });
+
+  it('parses view with security_invoker option', () => {
+    const yaml = `
+name: invoker_view
+query: "SELECT 1"
+options:
+  security_invoker: true
+`;
+    const result = parseView(yaml);
+    expect((result as { options?: Record<string, string | boolean> }).options).toEqual({
+      security_invoker: true,
+    });
+  });
 });
 
 // ─── Role Parsing ───────────────────────────────────────────────

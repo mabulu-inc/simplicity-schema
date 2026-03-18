@@ -376,6 +376,9 @@ export function parseView(yamlStr: string): ViewSchema | MaterializedViewSchema 
   }
 
   const view: ViewSchema = { name, query };
+  if (raw.options !== undefined) {
+    view.options = raw.options as Record<string, string | boolean>;
+  }
   if (raw.grants !== undefined)
     view.grants = (raw.grants as Record<string, unknown>[]).map((g, i) => parseGrantDef(g, `${ctx}.grants[${i}]`));
   const viewComment = resolveComment(raw);

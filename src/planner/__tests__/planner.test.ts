@@ -1136,6 +1136,63 @@ describe('Planner', () => {
       expect(grantOps[1].sql).toContain('"app_writer"');
       expect(grantOps[1].sql).toContain('SELECT, INSERT');
     });
+
+    it('generates WITH clause when options are specified', () => {
+      const desired = emptyDesired();
+      desired.views = [
+        {
+          name: 'secure_view',
+          query: 'SELECT id FROM users',
+          options: { security_barrier: true, check_option: 'cascaded' },
+        },
+      ];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_view');
+      expect(ops).toHaveLength(1);
+      expect(ops[0].sql).toContain('WITH (security_barrier = true, check_option = cascaded)');
+      expect(ops[0].sql).toContain('AS SELECT id FROM users');
+    });
+
+    it('omits WITH clause when options are undefined', () => {
+      const desired = emptyDesired();
+      desired.views = [
+        {
+          name: 'plain_view',
+          query: 'SELECT 1',
+        },
+      ];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_view');
+      expect(ops[0].sql).not.toContain('WITH');
+    });
+
+    it('omits WITH clause when options are empty', () => {
+      const desired = emptyDesired();
+      desired.views = [
+        {
+          name: 'plain_view',
+          query: 'SELECT 1',
+          options: {},
+        },
+      ];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_view');
+      expect(ops[0].sql).not.toContain('WITH');
+    });
+
+    it('generates WITH clause with single boolean option', () => {
+      const desired = emptyDesired();
+      desired.views = [
+        {
+          name: 'invoker_view',
+          query: 'SELECT 1',
+          options: { security_invoker: true },
+        },
+      ];
+      const result = buildPlan(desired, emptyActual());
+      const ops = findOps(result.operations, 'create_view');
+      expect(ops[0].sql).toContain('WITH (security_invoker = true)');
+    });
   });
 
   describe('materialized views', () => {

@@ -1501,6 +1501,12 @@ function createSequenceGrantOps(
 
 // ─── Views ─────────────────────────────────────────────────────
 
+function formatViewOptions(options: Record<string, string | boolean> | undefined): string {
+  if (!options || Object.keys(options).length === 0) return '';
+  const entries = Object.entries(options).map(([k, v]) => `${k} = ${v}`);
+  return ` WITH (${entries.join(', ')})`;
+}
+
 function diffViews(desired: ViewSchema[], actual: Map<string, ViewSchema>, pgSchema: string): Operation[] {
   const ops: Operation[] = [];
 
@@ -1509,7 +1515,7 @@ function diffViews(desired: ViewSchema[], actual: Map<string, ViewSchema>, pgSch
       type: 'create_view',
       phase: 9,
       objectName: view.name,
-      sql: `CREATE OR REPLACE VIEW "${pgSchema}"."${view.name}" AS ${view.query}`,
+      sql: `CREATE OR REPLACE VIEW "${pgSchema}"."${view.name}"${formatViewOptions(view.options)} AS ${view.query}`,
       destructive: false,
     });
 

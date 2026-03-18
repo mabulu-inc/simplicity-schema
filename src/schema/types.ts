@@ -202,6 +202,7 @@ export interface ViewSchema {
   name: string;
   materialized?: false;
   query: string;
+  options?: Record<string, string | boolean>;
   grants?: GrantDef[];
   comment?: string;
 }
