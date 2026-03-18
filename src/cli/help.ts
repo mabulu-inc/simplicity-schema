@@ -1,3 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'));
+
 export function getHelpText(): string {
   return `schema-flow — Declarative PostgreSQL schema management
 
@@ -317,5 +324,5 @@ export function getCommandHelpText(command: string, subcommand?: string): string
 }
 
 export function getVersionText(): string {
-  return '0.1.0';
+  return pkg.version;
 }
