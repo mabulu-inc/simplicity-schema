@@ -183,4 +183,9 @@
 - [x] T-094: Idempotent foreign key and check constraint creation — $1.16
 - [x] T-095: Document idempotent pipeline guarantee — $0.44
 
-**Grand Total: $82.52**
+## 29 — View Enhancements ($0.70)
+
+- [x] T-096: View options (WITH clause) — $0.70
+- [ ] T-097: View triggers (INSTEAD OF)
+
+**Grand Total: $83.22**
