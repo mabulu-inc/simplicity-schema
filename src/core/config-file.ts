@@ -1,7 +1,7 @@
 /**
- * Config file loading for simplicity-schema.
+ * Config file loading for schema-flow.
  *
- * Loads optional simplicity-schema.config.yaml with:
+ * Loads optional schema-flow.config.yaml with:
  * - ${VAR} environment variable interpolation
  * - Environment-specific overrides via `environments` section
  * - `default` section as base for all environments
@@ -31,7 +31,7 @@ interface RawConfigFile {
   environments?: Record<string, Record<string, unknown>>;
 }
 
-const DEFAULT_CONFIG_FILENAME = 'simplicity-schema.config.yaml';
+const DEFAULT_CONFIG_FILENAME = 'schema-flow.config.yaml';
 
 /**
  * Interpolate ${VAR} references in a string with environment variable values.

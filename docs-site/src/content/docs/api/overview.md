@@ -3,12 +3,12 @@ title: API overview
 description: TypeScript API entry points and configuration.
 ---
 
-Import from `@mabulu-inc/simplicity-schema` for the main API, or `@mabulu-inc/simplicity-schema/testing` for test helpers.
+Import from `@smplcty/schema-flow` for the main API, or `@smplcty/schema-flow/testing` for test helpers.
 
 ## Configuration
 
 ```typescript
-import { resolveConfig, createLogger } from '@mabulu-inc/simplicity-schema';
+import { resolveConfig, createLogger } from '@smplcty/schema-flow';
 
 const config = resolveConfig({
   connectionString: process.env.DATABASE_URL,
@@ -19,7 +19,7 @@ const config = resolveConfig({
 const logger = createLogger({ verbose: true, quiet: false, json: false });
 ```
 
-All `resolveConfig` fields are optional. Without `connectionString`, it reads `SIMPLICITY_SCHEMA_DATABASE_URL` then `DATABASE_URL` from the environment.
+All `resolveConfig` fields are optional. Without `connectionString`, it reads `SCHEMA_FLOW_DATABASE_URL` then `DATABASE_URL` from the environment.
 
 ### SimplicitySchemaConfig
 
@@ -42,7 +42,7 @@ All `resolveConfig` fields are optional. Without `connectionString`, it reads `S
 ## Quick example
 
 ```typescript
-import { resolveConfig, runAll, createLogger } from '@mabulu-inc/simplicity-schema';
+import { resolveConfig, runAll, createLogger } from '@smplcty/schema-flow';
 
 const config = resolveConfig({ connectionString: process.env.DATABASE_URL });
 const logger = createLogger({ verbose: true });

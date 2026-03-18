@@ -1,7 +1,7 @@
 export function getHelpText(): string {
-  return `simplicity-schema — Declarative PostgreSQL schema management
+  return `schema-flow — Declarative PostgreSQL schema management
 
-Usage: simplicity-schema <command> [options]
+Usage: schema-flow <command> [options]
 
 Commands:
   run                  Run full migration (pre → migrate → post)

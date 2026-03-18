@@ -8,13 +8,13 @@ description: Config resolution, config file, and environment variables.
 Configuration is resolved in priority order (highest first):
 
 1. **CLI flags** -- `--connection-string`, `--dir`, `--schema`, etc.
-2. **Config file** -- `simplicity-schema.config.yaml`
-3. **Environment variables** -- `SIMPLICITY_SCHEMA_DATABASE_URL`, then `DATABASE_URL`
+2. **Config file** -- `schema-flow.config.yaml`
+3. **Environment variables** -- `SCHEMA_FLOW_DATABASE_URL`, then `DATABASE_URL`
 4. **Convention defaults** -- `./schema` directory, `public` schema
 
 ## Config file
 
-Optional `simplicity-schema.config.yaml` at project root:
+Optional `schema-flow.config.yaml` at project root:
 
 ```yaml
 default:

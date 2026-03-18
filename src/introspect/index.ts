@@ -1,5 +1,5 @@
 /**
- * Database introspection for simplicity-schema.
+ * Database introspection for schema-flow.
  *
  * Queries pg_catalog / information_schema to read current DB state and
  * return typed data structures matching the schema types.

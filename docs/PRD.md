@@ -1,8 +1,8 @@
-# simplicity-schema — Product Requirements Document
+# schema-flow — Product Requirements Document
 
 ## 1. Overview
 
-`@mabulu-inc/simplicity-schema` is a **declarative PostgreSQL schema management tool**. Users define their desired database state in YAML files; the tool diffs that desired state against the live database and generates + executes the minimal SQL to converge.
+`@smplcty/schema-flow` is a **declarative PostgreSQL schema management tool**. Users define their desired database state in YAML files; the tool diffs that desired state against the live database and generates + executes the minimal SQL to converge.
 
 ### Design Principles
 
@@ -16,18 +16,18 @@
 
 ### Package Details
 
-- **Package name**: `@mabulu-inc/simplicity-schema`
+- **Package name**: `@smplcty/schema-flow`
 - **Runtime**: Node.js 20+
 - **Language**: TypeScript (strict mode)
 - **Core dependencies**: `pg`, `yaml`, `glob`, `chalk`
 - **Exports**: Main API (`./`) + Testing helpers (`./testing`)
-- **Binary**: `simplicity-schema`
+- **Binary**: `schema-flow`
 
 ---
 
 ## 2. Internal Schema: `_simplicity`
 
-simplicity-schema uses a dedicated PostgreSQL schema named **`_simplicity`** for its own internal bookkeeping. User-defined objects (tables, enums, functions, views, etc.) go into whatever schema the developer configures via `pgSchema` (default: `public`).
+schema-flow uses a dedicated PostgreSQL schema named **`_simplicity`** for its own internal bookkeeping. User-defined objects (tables, enums, functions, views, etc.) go into whatever schema the developer configures via `pgSchema` (default: `public`).
 
 ### What Lives in `_simplicity`
 
@@ -447,13 +447,13 @@ columns:
 Configuration values are resolved in priority order (highest first):
 
 1. **CLI flags** — `--connection-string`, `--dir`, `--schema`, etc.
-2. **Config file** — `simplicity-schema.config.yaml`
-3. **Environment variables** — `SIMPLICITY_SCHEMA_DATABASE_URL`, then `DATABASE_URL`
+2. **Config file** — `schema-flow.config.yaml`
+3. **Environment variables** — `SCHEMA_FLOW_DATABASE_URL`, then `DATABASE_URL`
 4. **Convention defaults** — Standard directory layout, `public` schema
 
 ### 5.2 Config File
 
-Optional `simplicity-schema.config.yaml` at project root:
+Optional `schema-flow.config.yaml` at project root:
 
 ```yaml
 default:
@@ -499,52 +499,52 @@ environments:
 
 ### 6.1 Core Migration
 
-| Command                         | Description                                                                           |
-| ------------------------------- | ------------------------------------------------------------------------------------- |
-| `simplicity-schema run`         | Run full migration (pre → migrate → post)                                             |
-| `simplicity-schema run pre`     | Run only pre-scripts                                                                  |
-| `simplicity-schema run migrate` | Run only schema migration phase                                                       |
-| `simplicity-schema run post`    | Run only post-scripts                                                                 |
-| `simplicity-schema plan`        | Dry-run — show planned operations without executing                                   |
-| `simplicity-schema validate`    | Execute plan in a rollback transaction to verify SQL validity                         |
-| `simplicity-schema baseline`    | Mark current DB state as baseline (create history entries without running migrations) |
+| Command                   | Description                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `schema-flow run`         | Run full migration (pre → migrate → post)                                             |
+| `schema-flow run pre`     | Run only pre-scripts                                                                  |
+| `schema-flow run migrate` | Run only schema migration phase                                                       |
+| `schema-flow run post`    | Run only post-scripts                                                                 |
+| `schema-flow plan`        | Dry-run — show planned operations without executing                                   |
+| `schema-flow validate`    | Execute plan in a rollback transaction to verify SQL validity                         |
+| `schema-flow baseline`    | Mark current DB state as baseline (create history entries without running migrations) |
 
 ### 6.2 Analysis
 
-| Command                           | Description                                                   |
-| --------------------------------- | ------------------------------------------------------------- |
-| `simplicity-schema drift`         | Compare YAML definitions to live DB; report differences       |
-| `simplicity-schema drift --apply` | Detect drift and apply fixes (respects `--allow-destructive`) |
-| `simplicity-schema lint`          | Static analysis of migration plan for dangerous patterns      |
-| `simplicity-schema status`        | Show migration status (applied files, pending changes)        |
+| Command                     | Description                                                   |
+| --------------------------- | ------------------------------------------------------------- |
+| `schema-flow drift`         | Compare YAML definitions to live DB; report differences       |
+| `schema-flow drift --apply` | Detect drift and apply fixes (respects `--allow-destructive`) |
+| `schema-flow lint`          | Static analysis of migration plan for dangerous patterns      |
+| `schema-flow status`        | Show migration status (applied files, pending changes)        |
 
 ### 6.3 Generation
 
-| Command                       | Flags                     | Description                                         |
-| ----------------------------- | ------------------------- | --------------------------------------------------- |
-| `simplicity-schema generate`  | `--output-dir`, `--seeds` | Generate YAML from existing database                |
-| `simplicity-schema sql`       | `--output`                | Generate standalone `.sql` migration file from plan |
-| `simplicity-schema erd`       | `--output`                | Generate Mermaid ER diagram from YAML               |
-| `simplicity-schema new pre`   | `--name`                  | Create timestamped pre-script template              |
-| `simplicity-schema new post`  | `--name`                  | Create timestamped post-script template             |
-| `simplicity-schema new mixin` | `--name`                  | Create mixin template                               |
-| `simplicity-schema init`      | —                         | Initialize a new schema project directory           |
+| Command                 | Flags                     | Description                                         |
+| ----------------------- | ------------------------- | --------------------------------------------------- |
+| `schema-flow generate`  | `--output-dir`, `--seeds` | Generate YAML from existing database                |
+| `schema-flow sql`       | `--output`                | Generate standalone `.sql` migration file from plan |
+| `schema-flow erd`       | `--output`                | Generate Mermaid ER diagram from YAML               |
+| `schema-flow new pre`   | `--name`                  | Create timestamped pre-script template              |
+| `schema-flow new post`  | `--name`                  | Create timestamped post-script template             |
+| `schema-flow new mixin` | `--name`                  | Create mixin template                               |
+| `schema-flow init`      | —                         | Initialize a new schema project directory           |
 
 ### 6.4 Rollback & Expand/Contract
 
-| Command                           | Description                                           |
-| --------------------------------- | ----------------------------------------------------- |
-| `simplicity-schema down`          | Rollback to previous migration snapshot               |
-| `simplicity-schema contract`      | Complete contract phase of expand/contract migration  |
-| `simplicity-schema expand-status` | Show status of in-progress expand/contract migrations |
+| Command                     | Description                                           |
+| --------------------------- | ----------------------------------------------------- |
+| `schema-flow down`          | Rollback to previous migration snapshot               |
+| `schema-flow contract`      | Complete contract phase of expand/contract migration  |
+| `schema-flow expand-status` | Show status of in-progress expand/contract migrations |
 
 ### 6.5 Utility
 
-| Command                       | Description                 |
-| ----------------------------- | --------------------------- |
-| `simplicity-schema docs`      | Print YAML format reference |
-| `simplicity-schema help`      | Show help                   |
-| `simplicity-schema --version` | Show version                |
+| Command                 | Description                 |
+| ----------------------- | --------------------------- |
+| `schema-flow docs`      | Print YAML format reference |
+| `schema-flow help`      | Show help                   |
+| `schema-flow --version` | Show version                |
 
 ### 6.6 Global Flags
 
@@ -783,21 +783,21 @@ When `--apply` is passed, drift detection generates a migration plan to fix all 
 
 ### 11.1 Scaffold / Generate
 
-`simplicity-schema generate` introspects an existing database and produces YAML files:
+`schema-flow generate` introspects an existing database and produces YAML files:
 
 - Generates one YAML file per table, enum, function, view, role
 - `--seeds <table1>,<table2>` flag: also generates seed data from specified tables
 - `--output-dir` flag: target directory (defaults to `./schema`)
-- Useful for bootstrapping simplicity-schema on an existing project
+- Useful for bootstrapping schema-flow on an existing project
 
-`simplicity-schema init` creates the standard directory structure.
+`schema-flow init` creates the standard directory structure.
 
-`simplicity-schema new pre|post|mixin --name <name>` creates timestamped templates.
+`schema-flow new pre|post|mixin --name <name>` creates timestamped templates.
 
 ### 11.2 Rollback
 
 - Before each migration run, a `MigrationSnapshot` is captured automatically
-- `simplicity-schema down` computes reverse operations from the latest snapshot and applies them
+- `schema-flow down` computes reverse operations from the latest snapshot and applies them
 - Reverse operations:
   - `create_table` → `DROP TABLE`
   - `add_column` → `DROP COLUMN`
@@ -834,16 +834,16 @@ Zero-downtime column migrations for type changes, renames, or transforms:
        reverse: 'email' # Optional: dual-write new→old
        batch_size: 5000 # Optional: override default 1000
    ```
-2. `simplicity-schema run` creates the new column and dual-write trigger
+2. `schema-flow run` creates the new column and dual-write trigger
 3. Backfill runs to populate existing rows (batched by configurable size)
 4. Application switches to using new column
-5. `simplicity-schema contract` drops old column and trigger
+5. `schema-flow contract` drops old column and trigger
 
 State tracked in `_simplicity.expand_state`. `expand-status` shows in-progress migrations.
 
 ### 11.4 SQL Generation
 
-`simplicity-schema sql --output migration.sql` renders the migration plan as a standalone SQL file:
+`schema-flow sql --output migration.sql` renders the migration plan as a standalone SQL file:
 
 - Proper transaction grouping (transactional DDL wrapped in `BEGIN/COMMIT`)
 - CONCURRENTLY operations outside transactions
@@ -853,7 +853,7 @@ State tracked in `_simplicity.expand_state`. `expand-status` shows in-progress m
 
 ### 11.5 ERD Generation
 
-`simplicity-schema erd --output schema.mmd` generates a Mermaid ER diagram:
+`schema-flow erd --output schema.mmd` generates a Mermaid ER diagram:
 
 - Tables with column names, types, PK/FK markers, and comments
 - Foreign key relationships as edges with correct cardinality
@@ -899,7 +899,7 @@ All files — YAML and SQL — are tracked by SHA-256 hash. A file is re-run onl
 
 ## 13. Public API
 
-The package exports all core functionality for programmatic use from `@mabulu-inc/simplicity-schema`:
+The package exports all core functionality for programmatic use from `@smplcty/schema-flow`:
 
 ### Core
 
@@ -989,7 +989,7 @@ The package exports all core functionality for programmatic use from `@mabulu-in
 | `detectInvalidIndexes(client, schema)`   | Find invalid indexes from failed CONCURRENTLY |
 | `reindexInvalid(client, schema, logger)` | Reindex invalid indexes                       |
 
-### Testing (`@mabulu-inc/simplicity-schema/testing`)
+### Testing (`@smplcty/schema-flow/testing`)
 
 | Export                    | Description                          |
 | ------------------------- | ------------------------------------ |

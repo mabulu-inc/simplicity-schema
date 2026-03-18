@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * CLI entry point for simplicity-schema.
+ * CLI entry point for schema-flow.
  */
 
 import { parseArgs } from './args.js';
@@ -38,13 +38,13 @@ async function main(): Promise<void> {
 
   if (parsed.command === 'unknown') {
     console.error(`Unknown command: ${parsed.unknownCommand}`);
-    console.error('Run "simplicity-schema help" for usage information.');
+    console.error('Run "schema-flow help" for usage information.');
     process.exitCode = 1;
     return;
   }
 
   if (parsed.command === 'docs') {
-    console.log('Documentation: https://github.com/mabulu-inc/simplicity-schema');
+    console.log('Documentation: https://github.com/mabulu-inc/schema-flow');
     return;
   }
 
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
 
       case 'new': {
         if (!parsed.newSubcommand) {
-          logger.error('Usage: simplicity-schema new <pre|post|mixin> --name <name>');
+          logger.error('Usage: schema-flow new <pre|post|mixin> --name <name>');
           process.exitCode = 1;
           return;
         }

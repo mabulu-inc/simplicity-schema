@@ -5,15 +5,15 @@ description: Snapshot-based rollback for migrations.
 
 ## How it works
 
-Before each migration run, simplicity-schema captures a `MigrationSnapshot` in `_simplicity.snapshots`. This records the operations that were applied.
+Before each migration run, schema-flow captures a `MigrationSnapshot` in `_simplicity.snapshots`. This records the operations that were applied.
 
-`simplicity-schema down` computes reverse operations from the latest snapshot and executes them.
+`schema-flow down` computes reverse operations from the latest snapshot and executes them.
 
 ## Usage
 
 ```bash
 # Rollback the last migration
-npx @mabulu-inc/simplicity-schema down --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow down --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## Reversible operations
@@ -59,5 +59,5 @@ import {
   deleteSnapshot,
   computeRollback,
   runDown,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 ```

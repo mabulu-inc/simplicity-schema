@@ -1,4 +1,4 @@
-// Schema type definitions for simplicity-schema YAML files
+// Schema type definitions for schema-flow YAML files
 
 // ─── Foreign Key ────────────────────────────────────────────────
 

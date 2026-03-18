@@ -15,7 +15,7 @@ import {
   getExistingRoles,
   introspectTable,
   withClient,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 
 await withClient(connectionString, async (client) => {
   // List object names

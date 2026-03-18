@@ -1,4 +1,4 @@
-// Public API surface for @mabulu-inc/simplicity-schema
+// Public API surface for @smplcty/schema-flow
 
 // Core
 export { resolveConfig } from './core/config.js';

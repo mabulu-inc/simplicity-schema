@@ -1,32 +1,19 @@
-# @mabulu-inc/simplicity-schema
+# @smplcty/schema-flow
 
 Declarative PostgreSQL schema management. Define your database in YAML, diff against live state, generate and execute minimal SQL to converge.
 
 ## Setup
 
-### 1. Configure `.npmrc`
-
-This package is on the GitHub Packages registry. Add to your project `.npmrc` (or `~/.npmrc` for global config):
-
-```ini
-@mabulu-inc:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-Set `GITHUB_TOKEN` in your environment with a [personal access token](https://github.com/settings/tokens) that has `read:packages` scope.
-
-### 2. Run directly with `npx`
-
-No install step needed. `npx` downloads and runs the package:
+Install or run directly with `npx`:
 
 ```bash
-npx @mabulu-inc/simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow run --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm dlx @mabulu-inc/simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
+pnpm dlx @smplcty/schema-flow run --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## How it works
@@ -44,7 +31,7 @@ No migration files to manage. No up/down scripts. Just declare the end state.
 
 ```bash
 # Initialize project structure
-npx @mabulu-inc/simplicity-schema init --dir ./schema
+npx @smplcty/schema-flow init --dir ./schema
 
 # Define a table
 cat > schema/tables/users.yaml << 'EOF'
@@ -71,10 +58,10 @@ indexes:
 EOF
 
 # Preview what will happen
-npx @mabulu-inc/simplicity-schema plan --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow plan --db postgresql://user:pass@localhost:5432/mydb
 
 # Run the migration
-npx @mabulu-inc/simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow run --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## Directory layout
@@ -106,44 +93,44 @@ schema/
 
 ### Migration
 
-| Command                                         | Description                             |
-| ----------------------------------------------- | --------------------------------------- |
-| `npx @mabulu-inc/simplicity-schema run`         | Full migration (pre -> migrate -> post) |
-| `npx @mabulu-inc/simplicity-schema run pre`     | Pre-scripts only                        |
-| `npx @mabulu-inc/simplicity-schema run migrate` | Schema migration only                   |
-| `npx @mabulu-inc/simplicity-schema run post`    | Post-scripts only                       |
-| `npx @mabulu-inc/simplicity-schema plan`        | Dry-run: show plan without executing    |
-| `npx @mabulu-inc/simplicity-schema validate`    | Execute in rolled-back transaction      |
-| `npx @mabulu-inc/simplicity-schema baseline`    | Mark current DB as baseline             |
+| Command                                | Description                             |
+| -------------------------------------- | --------------------------------------- |
+| `npx @smplcty/schema-flow run`         | Full migration (pre -> migrate -> post) |
+| `npx @smplcty/schema-flow run pre`     | Pre-scripts only                        |
+| `npx @smplcty/schema-flow run migrate` | Schema migration only                   |
+| `npx @smplcty/schema-flow run post`    | Post-scripts only                       |
+| `npx @smplcty/schema-flow plan`        | Dry-run: show plan without executing    |
+| `npx @smplcty/schema-flow validate`    | Execute in rolled-back transaction      |
+| `npx @smplcty/schema-flow baseline`    | Mark current DB as baseline             |
 
 ### Analysis
 
-| Command                                           | Description                       |
-| ------------------------------------------------- | --------------------------------- |
-| `npx @mabulu-inc/simplicity-schema drift`         | Compare YAML to live DB           |
-| `npx @mabulu-inc/simplicity-schema drift --apply` | Fix detected drift                |
-| `npx @mabulu-inc/simplicity-schema lint`          | Static analysis of migration plan |
-| `npx @mabulu-inc/simplicity-schema status`        | Applied files and pending changes |
+| Command                                  | Description                       |
+| ---------------------------------------- | --------------------------------- |
+| `npx @smplcty/schema-flow drift`         | Compare YAML to live DB           |
+| `npx @smplcty/schema-flow drift --apply` | Fix detected drift                |
+| `npx @smplcty/schema-flow lint`          | Static analysis of migration plan |
+| `npx @smplcty/schema-flow status`        | Applied files and pending changes |
 
 ### Generation
 
-| Command                                                         | Description                        |
-| --------------------------------------------------------------- | ---------------------------------- |
-| `npx @mabulu-inc/simplicity-schema generate`                    | Generate YAML from existing DB     |
-| `npx @mabulu-inc/simplicity-schema sql --output migration.sql`  | Export plan as SQL file            |
-| `npx @mabulu-inc/simplicity-schema erd --output schema.mmd`     | Generate Mermaid ER diagram        |
-| `npx @mabulu-inc/simplicity-schema init`                        | Create project directory structure |
-| `npx @mabulu-inc/simplicity-schema new pre --name cleanup`      | Create pre-script template         |
-| `npx @mabulu-inc/simplicity-schema new post --name refresh`     | Create post-script template        |
-| `npx @mabulu-inc/simplicity-schema new mixin --name timestamps` | Create mixin template              |
+| Command                                                | Description                        |
+| ------------------------------------------------------ | ---------------------------------- |
+| `npx @smplcty/schema-flow generate`                    | Generate YAML from existing DB     |
+| `npx @smplcty/schema-flow sql --output migration.sql`  | Export plan as SQL file            |
+| `npx @smplcty/schema-flow erd --output schema.mmd`     | Generate Mermaid ER diagram        |
+| `npx @smplcty/schema-flow init`                        | Create project directory structure |
+| `npx @smplcty/schema-flow new pre --name cleanup`      | Create pre-script template         |
+| `npx @smplcty/schema-flow new post --name refresh`     | Create post-script template        |
+| `npx @smplcty/schema-flow new mixin --name timestamps` | Create mixin template              |
 
 ### Rollback & expand/contract
 
-| Command                                           | Description                        |
-| ------------------------------------------------- | ---------------------------------- |
-| `npx @mabulu-inc/simplicity-schema down`          | Rollback to previous snapshot      |
-| `npx @mabulu-inc/simplicity-schema contract`      | Complete expand/contract migration |
-| `npx @mabulu-inc/simplicity-schema expand-status` | Show in-progress expand migrations |
+| Command                                  | Description                        |
+| ---------------------------------------- | ---------------------------------- |
+| `npx @smplcty/schema-flow down`          | Rollback to previous snapshot      |
+| `npx @smplcty/schema-flow contract`      | Complete expand/contract migration |
+| `npx @smplcty/schema-flow expand-status` | Show in-progress expand migrations |
 
 ### Global flags
 
@@ -172,12 +159,12 @@ Config is resolved in priority order: CLI flags > config file > env vars > defau
 ```bash
 DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
 # or
-SIMPLICITY_SCHEMA_DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
+SCHEMA_FLOW_DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
 ```
 
 ### Config file
 
-Optional `simplicity-schema.config.yaml` at project root:
+Optional `schema-flow.config.yaml` at project root:
 
 ```yaml
 default:
@@ -200,7 +187,7 @@ Select with `--env production`.
 ## TypeScript API
 
 ```typescript
-import { resolveConfig, runAll, buildPlan, detectDrift, lintPlan, createLogger } from '@mabulu-inc/simplicity-schema';
+import { resolveConfig, runAll, buildPlan, detectDrift, lintPlan, createLogger } from '@smplcty/schema-flow';
 
 const config = resolveConfig({ connectionString: process.env.DATABASE_URL });
 const logger = createLogger({ verbose: true });
@@ -216,7 +203,7 @@ console.log(plan.operations);
 ### Testing helpers
 
 ```typescript
-import { useTestProject, writeSchema } from '@mabulu-inc/simplicity-schema/testing';
+import { useTestProject, writeSchema } from '@smplcty/schema-flow/testing';
 
 const project = await useTestProject(process.env.DATABASE_URL);
 
@@ -238,12 +225,12 @@ await project.cleanup(); // drops isolated test database
 
 ## Documentation
 
-Full documentation at **[mabulu-inc.github.io/simplicity-schema](https://mabulu-inc.github.io/simplicity-schema/)**:
+Full documentation at **[mabulu-inc.github.io/simplicity-schema-flow](https://mabulu-inc.github.io/simplicity-schema-flow/)**:
 
-- **[Schema reference](https://mabulu-inc.github.io/simplicity-schema/schema/tables/)** -- Complete YAML format for every object type
-- **[Safety & zero-downtime](https://mabulu-inc.github.io/simplicity-schema/safety/destructive-protection/)** -- Destructive protection, locking, zero-downtime patterns
-- **[TypeScript API](https://mabulu-inc.github.io/simplicity-schema/api/overview/)** -- Full programmatic API reference
-- **[Architecture](https://mabulu-inc.github.io/simplicity-schema/architecture/pipeline/)** -- Pipeline stages, execution phases, internal schema
+- **[Schema reference](https://mabulu-inc.github.io/simplicity-schema-flow/schema/tables/)** -- Complete YAML format for every object type
+- **[Safety & zero-downtime](https://mabulu-inc.github.io/simplicity-schema-flow/safety/destructive-protection/)** -- Destructive protection, locking, zero-downtime patterns
+- **[TypeScript API](https://mabulu-inc.github.io/simplicity-schema-flow/api/overview/)** -- Full programmatic API reference
+- **[Architecture](https://mabulu-inc.github.io/simplicity-schema-flow/architecture/pipeline/)** -- Pipeline stages, execution phases, internal schema
 
 ## Requirements
 

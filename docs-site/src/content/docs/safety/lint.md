@@ -8,7 +8,7 @@ The linter analyzes migration plans before execution and warns about dangerous p
 ## Usage
 
 ```bash
-npx @mabulu-inc/simplicity-schema lint --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow lint --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## Rules
@@ -27,7 +27,7 @@ npx @mabulu-inc/simplicity-schema lint --db postgresql://user:pass@localhost:543
 ## Programmatic API
 
 ```typescript
-import { lintPlan } from '@mabulu-inc/simplicity-schema';
+import { lintPlan } from '@smplcty/schema-flow';
 
 const result = lintPlan(plan);
 

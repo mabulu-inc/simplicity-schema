@@ -6,15 +6,7 @@ description: Running migrations, planning, and validation programmatically.
 ## Running migrations
 
 ```typescript
-import {
-  runAll,
-  runPre,
-  runMigrate,
-  runPost,
-  runValidate,
-  runBaseline,
-  runPipeline,
-} from '@mabulu-inc/simplicity-schema';
+import { runAll, runPre, runMigrate, runPost, runValidate, runBaseline, runPipeline } from '@smplcty/schema-flow';
 
 // Full pipeline: pre -> migrate -> post
 const result = await runAll(config, logger);
@@ -61,7 +53,7 @@ interface BaselineResult {
 ## Planning
 
 ```typescript
-import { buildPlan } from '@mabulu-inc/simplicity-schema';
+import { buildPlan } from '@smplcty/schema-flow';
 
 const plan = buildPlan(desired, actual, {
   allowDestructive: false,
@@ -87,7 +79,7 @@ interface Operation {
 ## File discovery and parsing
 
 ```typescript
-import { discoverSchemaFiles, parseSchemaFile } from '@mabulu-inc/simplicity-schema';
+import { discoverSchemaFiles, parseSchemaFile } from '@smplcty/schema-flow';
 import { readFile } from 'node:fs/promises';
 
 const discovered = await discoverSchemaFiles('./schema');
@@ -116,13 +108,13 @@ import {
   parseEnumFile,
   parseViewFile,
   parseRoleFile,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 ```
 
 ## Mixins
 
 ```typescript
-import { loadMixins, applyMixins } from '@mabulu-inc/simplicity-schema';
+import { loadMixins, applyMixins } from '@smplcty/schema-flow';
 
 const registry = loadMixins(mixinSchemas);
 const expandedTable = applyMixins(tableSchema, registry);
@@ -131,7 +123,7 @@ const expandedTable = applyMixins(tableSchema, registry);
 ## Status
 
 ```typescript
-import { getStatus } from '@mabulu-inc/simplicity-schema';
+import { getStatus } from '@smplcty/schema-flow';
 
 const status = await getStatus(config, logger);
 console.log(`Applied: ${status.appliedFiles}, Pending: ${status.pendingChanges}`);

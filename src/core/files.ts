@@ -1,5 +1,5 @@
 /**
- * File discovery for simplicity-schema.
+ * File discovery for schema-flow.
  *
  * Glob-based discovery of YAML and SQL files from the schema directory,
  * organized by phase (pre, schema, post).

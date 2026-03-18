@@ -1,5 +1,5 @@
 /**
- * ERD generation for simplicity-schema.
+ * ERD generation for schema-flow.
  *
  * Generates Mermaid ER diagrams from YAML table definitions.
  */

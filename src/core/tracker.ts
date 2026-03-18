@@ -1,5 +1,5 @@
 /**
- * File tracker for simplicity-schema.
+ * File tracker for schema-flow.
  *
  * Manages the _simplicity.history table that tracks which files have been
  * applied and their SHA-256 hashes. Files are re-run only when content changes.

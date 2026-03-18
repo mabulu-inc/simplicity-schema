@@ -1,5 +1,5 @@
 /**
- * Rollback module for simplicity-schema.
+ * Rollback module for schema-flow.
  *
  * Captures migration snapshots before execution and computes reverse
  * operations to undo a migration via the `down` command.

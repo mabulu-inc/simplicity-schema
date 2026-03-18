@@ -205,7 +205,7 @@ Creates `GENERATED ALWAYS AS (price * quantity) STORED`.
     batch_size: 5000 # optional: backfill batch size (default: 1000)
 ```
 
-See [expand/contract migrations](/simplicity-schema/safety/expand-contract/) for details.
+See [expand/contract migrations](/schema-flow/safety/expand-contract/) for details.
 
 ## Primary key
 
@@ -339,4 +339,4 @@ mixins:
   - soft_delete
 ```
 
-See [Mixins](/simplicity-schema/schema/mixins/) for details.
+See [Mixins](/schema-flow/schema/mixins/) for details.

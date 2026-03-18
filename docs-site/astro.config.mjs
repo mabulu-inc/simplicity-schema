@@ -5,15 +5,15 @@ import starlight from '@astrojs/starlight';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://mabulu-inc.github.io',
-  base: '/simplicity-schema',
+  base: '/simplicity-schema-flow',
   integrations: [
     starlight({
-      title: 'simplicity-schema',
+      title: 'simplicity-schema-flow',
       social: [
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/mabulu-inc/simplicity-schema',
+          href: 'https://github.com/mabulu-inc/simplicity-schema-flow',
         },
       ],
       sidebar: [

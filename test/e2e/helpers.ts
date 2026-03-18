@@ -1,5 +1,5 @@
 /**
- * E2E test helpers for simplicity-schema.
+ * E2E test helpers for schema-flow.
  *
  * Re-exports core test utilities and adds E2E-specific helpers
  * for querying the database and asserting schema state.

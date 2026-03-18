@@ -14,7 +14,7 @@ import {
   deleteSnapshot,
   computeRollback,
   runDown,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 
 // Execute rollback
 const result = await runDown(config, logger);
@@ -60,7 +60,7 @@ import {
   runBackfill,
   runContract,
   getExpandStatus,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 
 await withClient(connectionString, async (client) => {
   await ensureExpandStateTable(client);

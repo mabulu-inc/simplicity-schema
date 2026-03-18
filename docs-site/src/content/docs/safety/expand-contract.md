@@ -48,7 +48,7 @@ columns:
 ### Step 1: Expand
 
 ```bash
-npx @mabulu-inc/simplicity-schema run
+npx @smplcty/schema-flow run
 ```
 
 This:
@@ -61,7 +61,7 @@ This:
 ### Step 2: Monitor
 
 ```bash
-npx @mabulu-inc/simplicity-schema expand-status
+npx @smplcty/schema-flow expand-status
 ```
 
 Shows in-progress expand/contract migrations and their backfill progress.
@@ -75,7 +75,7 @@ Update your application to read from and write to the new column. The dual-write
 Once the application is fully switched over:
 
 ```bash
-npx @mabulu-inc/simplicity-schema contract --allow-destructive
+npx @smplcty/schema-flow contract --allow-destructive
 ```
 
 This drops the old column and the dual-write trigger.

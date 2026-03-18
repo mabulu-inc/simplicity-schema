@@ -1,4 +1,4 @@
-# Contributing to simplicity-schema
+# Contributing to schema-flow
 
 ## Development methodology
 

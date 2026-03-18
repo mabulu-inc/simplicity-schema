@@ -1,6 +1,6 @@
 {
-  "name": "@mabulu-inc/simplicity-schema",
-  "version": "0.2.2",
+  "name": "@smplcty/schema-flow",
+  "version": "0.2.3",
   "description": "Declarative PostgreSQL schema management tool",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,7 +21,7 @@
     "LICENSE"
   ],
   "bin": {
-    "simplicity-schema": "./dist/cli/index.js"
+    "schema-flow": "./dist/cli/index.js"
   },
   "scripts": {
     "lint": "eslint src/",

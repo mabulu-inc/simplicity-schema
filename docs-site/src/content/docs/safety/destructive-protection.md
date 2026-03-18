@@ -1,6 +1,6 @@
 ---
 title: Destructive protection
-description: How simplicity-schema prevents accidental data loss.
+description: How schema-flow prevents accidental data loss.
 ---
 
 ## Blocked operations
@@ -32,15 +32,15 @@ When a blocked operation is encountered:
 
 ```bash
 # See what would be blocked
-npx @mabulu-inc/simplicity-schema plan
+npx @smplcty/schema-flow plan
 
 # Allow destructive operations
-npx @mabulu-inc/simplicity-schema run --allow-destructive
+npx @smplcty/schema-flow run --allow-destructive
 ```
 
 ## Advisory locking
 
-Before running migrations, simplicity-schema acquires a PostgreSQL advisory lock. This prevents concurrent migration processes from conflicting. The lock is released after migration completes or on error.
+Before running migrations, schema-flow acquires a PostgreSQL advisory lock. This prevents concurrent migration processes from conflicting. The lock is released after migration completes or on error.
 
 ## Transactional execution
 

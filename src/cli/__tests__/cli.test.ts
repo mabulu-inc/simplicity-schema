@@ -11,143 +11,143 @@ const DATABASE_URL = process.env.DATABASE_URL!;
 
 describe('CLI argument parsing', () => {
   it('should parse "run" command with no subcommand', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run']);
+    const result = parseArgs(['node', 'schema-flow', 'run']);
     expect(result.command).toBe('run');
     expect(result.subcommand).toBeUndefined();
   });
 
   it('should parse "run pre" subcommand', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', 'pre']);
+    const result = parseArgs(['node', 'schema-flow', 'run', 'pre']);
     expect(result.command).toBe('run');
     expect(result.subcommand).toBe('pre');
   });
 
   it('should parse "run migrate" subcommand', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', 'migrate']);
+    const result = parseArgs(['node', 'schema-flow', 'run', 'migrate']);
     expect(result.command).toBe('run');
     expect(result.subcommand).toBe('migrate');
   });
 
   it('should parse "run post" subcommand', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', 'post']);
+    const result = parseArgs(['node', 'schema-flow', 'run', 'post']);
     expect(result.command).toBe('run');
     expect(result.subcommand).toBe('post');
   });
 
   it('should parse "plan" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'plan']);
+    const result = parseArgs(['node', 'schema-flow', 'plan']);
     expect(result.command).toBe('plan');
   });
 
   it('should parse "validate" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'validate']);
+    const result = parseArgs(['node', 'schema-flow', 'validate']);
     expect(result.command).toBe('validate');
   });
 
   it('should parse "status" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'status']);
+    const result = parseArgs(['node', 'schema-flow', 'status']);
     expect(result.command).toBe('status');
   });
 
   it('should parse "init" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'init']);
+    const result = parseArgs(['node', 'schema-flow', 'init']);
     expect(result.command).toBe('init');
   });
 
   it('should default to "help" when no command given', () => {
-    const result = parseArgs(['node', 'simplicity-schema']);
+    const result = parseArgs(['node', 'schema-flow']);
     expect(result.command).toBe('help');
   });
 
   it('should parse "help" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'help']);
+    const result = parseArgs(['node', 'schema-flow', 'help']);
     expect(result.command).toBe('help');
   });
 
   it('should parse --help flag as help command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', '--help']);
+    const result = parseArgs(['node', 'schema-flow', '--help']);
     expect(result.command).toBe('help');
   });
 
   it('should parse --version flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', '--version']);
+    const result = parseArgs(['node', 'schema-flow', '--version']);
     expect(result.command).toBe('version');
   });
 
   it('should parse --connection-string flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--connection-string', 'postgres://localhost/db']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--connection-string', 'postgres://localhost/db']);
     expect(result.overrides.connectionString).toBe('postgres://localhost/db');
   });
 
   it('should parse --db flag as connectionString', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--db', 'postgres://localhost/db']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--db', 'postgres://localhost/db']);
     expect(result.overrides.connectionString).toBe('postgres://localhost/db');
   });
 
   it('should parse --dir flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--dir', './my-schema']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--dir', './my-schema']);
     expect(result.overrides.baseDir).toBe('./my-schema');
   });
 
   it('should parse --schema flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--schema', 'myschema']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--schema', 'myschema']);
     expect(result.overrides.pgSchema).toBe('myschema');
   });
 
   it('should parse --dry-run flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--dry-run']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--dry-run']);
     expect(result.overrides.dryRun).toBe(true);
   });
 
   it('should parse --allow-destructive flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--allow-destructive']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--allow-destructive']);
     expect(result.overrides.allowDestructive).toBe(true);
   });
 
   it('should parse --skip-checks flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--skip-checks']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--skip-checks']);
     expect(result.overrides.skipChecks).toBe(true);
   });
 
   it('should parse --verbose flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--verbose']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--verbose']);
     expect(result.overrides.verbose).toBe(true);
   });
 
   it('should parse --quiet flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--quiet']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--quiet']);
     expect(result.overrides.quiet).toBe(true);
   });
 
   it('should parse --json flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--json']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--json']);
     expect(result.overrides.json).toBe(true);
   });
 
   it('should parse --env flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--env', 'production']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--env', 'production']);
     expect(result.overrides.env).toBe('production');
   });
 
   it('should parse --lock-timeout flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--lock-timeout', '3000']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--lock-timeout', '3000']);
     expect(result.overrides.lockTimeout).toBe(3000);
   });
 
   it('should parse --statement-timeout flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--statement-timeout', '60000']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--statement-timeout', '60000']);
     expect(result.overrides.statementTimeout).toBe(60000);
   });
 
   it('should parse --max-retries flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'run', '--max-retries', '5']);
+    const result = parseArgs(['node', 'schema-flow', 'run', '--max-retries', '5']);
     expect(result.overrides.maxRetries).toBe(5);
   });
 
   it('should parse multiple flags together', () => {
     const result = parseArgs([
       'node',
-      'simplicity-schema',
+      'schema-flow',
       'run',
       '--verbose',
       '--allow-destructive',
@@ -164,7 +164,7 @@ describe('CLI argument parsing', () => {
   });
 
   it('should treat unknown commands as help', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'foobar']);
+    const result = parseArgs(['node', 'schema-flow', 'foobar']);
     expect(result.command).toBe('unknown');
     expect(result.unknownCommand).toBe('foobar');
   });
@@ -172,116 +172,116 @@ describe('CLI argument parsing', () => {
   // ─── Missing command parsing tests (T-030) ─────────────────────
 
   it('should parse "drift" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'drift']);
+    const result = parseArgs(['node', 'schema-flow', 'drift']);
     expect(result.command).toBe('drift');
   });
 
   it('should parse "drift" with --apply flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'drift', '--apply']);
+    const result = parseArgs(['node', 'schema-flow', 'drift', '--apply']);
     expect(result.command).toBe('drift');
     expect(result.apply).toBe(true);
   });
 
   it('should parse "lint" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'lint']);
+    const result = parseArgs(['node', 'schema-flow', 'lint']);
     expect(result.command).toBe('lint');
   });
 
   it('should parse "generate" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'generate']);
+    const result = parseArgs(['node', 'schema-flow', 'generate']);
     expect(result.command).toBe('generate');
   });
 
   it('should parse "generate" with --output-dir flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'generate', '--output-dir', './out']);
+    const result = parseArgs(['node', 'schema-flow', 'generate', '--output-dir', './out']);
     expect(result.command).toBe('generate');
     expect(result.output).toBe('./out');
   });
 
   it('should parse "generate" with --seeds flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'generate', '--seeds']);
+    const result = parseArgs(['node', 'schema-flow', 'generate', '--seeds']);
     expect(result.command).toBe('generate');
     expect(result.seeds).toBe(true);
   });
 
   it('should parse "sql" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'sql']);
+    const result = parseArgs(['node', 'schema-flow', 'sql']);
     expect(result.command).toBe('sql');
   });
 
   it('should parse "sql" with --output flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'sql', '--output', 'migration.sql']);
+    const result = parseArgs(['node', 'schema-flow', 'sql', '--output', 'migration.sql']);
     expect(result.command).toBe('sql');
     expect(result.output).toBe('migration.sql');
   });
 
   it('should parse "erd" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'erd']);
+    const result = parseArgs(['node', 'schema-flow', 'erd']);
     expect(result.command).toBe('erd');
   });
 
   it('should parse "erd" with --output flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'erd', '--output', 'schema.mmd']);
+    const result = parseArgs(['node', 'schema-flow', 'erd', '--output', 'schema.mmd']);
     expect(result.command).toBe('erd');
     expect(result.output).toBe('schema.mmd');
   });
 
   it('should parse "new pre" with --name flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'new', 'pre', '--name', 'add_indexes']);
+    const result = parseArgs(['node', 'schema-flow', 'new', 'pre', '--name', 'add_indexes']);
     expect(result.command).toBe('new');
     expect(result.newSubcommand).toBe('pre');
     expect(result.name).toBe('add_indexes');
   });
 
   it('should parse "new post" with --name flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'new', 'post', '--name', 'seed_data']);
+    const result = parseArgs(['node', 'schema-flow', 'new', 'post', '--name', 'seed_data']);
     expect(result.command).toBe('new');
     expect(result.newSubcommand).toBe('post');
     expect(result.name).toBe('seed_data');
   });
 
   it('should parse "new mixin" with --name flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'new', 'mixin', '--name', 'timestamps']);
+    const result = parseArgs(['node', 'schema-flow', 'new', 'mixin', '--name', 'timestamps']);
     expect(result.command).toBe('new');
     expect(result.newSubcommand).toBe('mixin');
     expect(result.name).toBe('timestamps');
   });
 
   it('should parse "down" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'down']);
+    const result = parseArgs(['node', 'schema-flow', 'down']);
     expect(result.command).toBe('down');
   });
 
   it('should parse "contract" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'contract']);
+    const result = parseArgs(['node', 'schema-flow', 'contract']);
     expect(result.command).toBe('contract');
   });
 
   it('should parse "expand-status" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'expand-status']);
+    const result = parseArgs(['node', 'schema-flow', 'expand-status']);
     expect(result.command).toBe('expand-status');
   });
 
   it('should parse "docs" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'docs']);
+    const result = parseArgs(['node', 'schema-flow', 'docs']);
     expect(result.command).toBe('docs');
   });
 
   it('should parse "generate" with --output-dir and --seeds together', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'generate', '--output-dir', './generated', '--seeds']);
+    const result = parseArgs(['node', 'schema-flow', 'generate', '--output-dir', './generated', '--seeds']);
     expect(result.command).toBe('generate');
     expect(result.output).toBe('./generated');
     expect(result.seeds).toBe(true);
   });
 
   it('should parse "drift" with --json flag', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'drift', '--json']);
+    const result = parseArgs(['node', 'schema-flow', 'drift', '--json']);
     expect(result.command).toBe('drift');
     expect(result.overrides.json).toBe(true);
   });
 
   it('should parse "new" without subcommand', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'new']);
+    const result = parseArgs(['node', 'schema-flow', 'new']);
     expect(result.command).toBe('new');
     expect(result.newSubcommand).toBeUndefined();
   });
@@ -476,7 +476,7 @@ columns:
 
 describe('CLI baseline command', () => {
   it('should parse "baseline" command', () => {
-    const result = parseArgs(['node', 'simplicity-schema', 'baseline']);
+    const result = parseArgs(['node', 'schema-flow', 'baseline']);
     expect(result.command).toBe('baseline');
   });
 
@@ -612,7 +612,7 @@ describe('CLI help output', () => {
   it('should produce help text', async () => {
     const { getHelpText } = await import('../help.js');
     const text = getHelpText();
-    expect(text).toContain('simplicity-schema');
+    expect(text).toContain('schema-flow');
     expect(text).toContain('run');
     expect(text).toContain('plan');
     expect(text).toContain('validate');

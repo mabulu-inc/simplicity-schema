@@ -1,9 +1,9 @@
 ---
 title: Introduction
-description: What simplicity-schema is and how it works.
+description: What schema-flow is and how it works.
 ---
 
-`@mabulu-inc/simplicity-schema` is a declarative PostgreSQL schema management tool. You define your desired database state in YAML files; the tool diffs that state against the live database and generates + executes the minimal SQL to converge.
+`@smplcty/schema-flow` is a declarative PostgreSQL schema management tool. You define your desired database state in YAML files; the tool diffs that state against the live database and generates + executes the minimal SQL to converge.
 
 ## How it works
 
@@ -30,37 +30,20 @@ No migration files to manage. No up/down scripts. Just declare the end state.
 
 ## Setup
 
-This package is published to the GitHub Packages registry. You need to configure npm/pnpm to resolve the `@mabulu-inc` scope from GitHub Packages before you can run it.
-
-### 1. Create a personal access token
-
-Create a [GitHub personal access token](https://github.com/settings/tokens) (classic) with `read:packages` scope.
-
-### 2. Configure `.npmrc`
-
-Add to your project's `.npmrc` (or `~/.npmrc` for global config):
-
-```ini
-@mabulu-inc:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-Set the token in your environment:
+Install from npm:
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token_here
+npm install @smplcty/schema-flow
 ```
 
-### 3. Run it
-
-No install step needed. Use `npx` or `pnpm dlx` to run directly:
+Or use `npx` / `pnpm dlx` to run directly without installing:
 
 ```bash
-npx @mabulu-inc/simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow run --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm dlx @mabulu-inc/simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
+pnpm dlx @smplcty/schema-flow run --db postgresql://user:pass@localhost:5432/mydb
 ```

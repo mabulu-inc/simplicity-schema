@@ -1,5 +1,5 @@
 /**
- * Test helpers for @mabulu-inc/simplicity-schema.
+ * Test helpers for @smplcty/schema-flow.
  *
  * Provides utilities for creating isolated test environments with
  * their own PostgreSQL databases and temp directories.

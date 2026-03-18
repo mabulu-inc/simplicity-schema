@@ -6,7 +6,7 @@ description: Generating YAML, SQL, and ERD diagrams programmatically.
 ## Generate YAML from database
 
 ```typescript
-import { generateFromDb } from '@mabulu-inc/simplicity-schema';
+import { generateFromDb } from '@smplcty/schema-flow';
 
 const files = await generateFromDb({
   connectionString,
@@ -20,7 +20,7 @@ const files = await generateFromDb({
 ## Generate SQL from plan
 
 ```typescript
-import { generateSql, generateSqlFile, formatMigrationSql } from '@mabulu-inc/simplicity-schema';
+import { generateSql, generateSqlFile, formatMigrationSql } from '@smplcty/schema-flow';
 
 // Get SQL as string
 const sql = generateSql(plan);
@@ -42,7 +42,7 @@ Output includes:
 ## Generate ERD
 
 ```typescript
-import { generateErd } from '@mabulu-inc/simplicity-schema';
+import { generateErd } from '@smplcty/schema-flow';
 
 const mermaid = generateErd(tables);
 // Returns Mermaid ER diagram string
@@ -57,7 +57,7 @@ Output includes:
 ## Scaffold
 
 ```typescript
-import { scaffoldInit, scaffoldPre, scaffoldPost, scaffoldMixin } from '@mabulu-inc/simplicity-schema';
+import { scaffoldInit, scaffoldPre, scaffoldPost, scaffoldMixin } from '@smplcty/schema-flow';
 
 // Create project directory structure
 scaffoldInit('./schema');

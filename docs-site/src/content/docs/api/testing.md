@@ -3,14 +3,14 @@ title: Testing helpers
 description: Isolated test environments with real PostgreSQL databases.
 ---
 
-Import from `@mabulu-inc/simplicity-schema/testing`.
+Import from `@smplcty/schema-flow/testing`.
 
 ## useTestProject
 
 Creates an isolated PostgreSQL database for a test. Each call creates a unique database, so tests don't interfere with each other.
 
 ```typescript
-import { useTestProject, writeSchema } from '@mabulu-inc/simplicity-schema/testing';
+import { useTestProject, writeSchema } from '@smplcty/schema-flow/testing';
 
 const project = await useTestProject(process.env.DATABASE_URL!);
 
@@ -73,7 +73,7 @@ interface TestProject {
 Writes YAML files to a directory, creating subdirectories as needed.
 
 ```typescript
-import { writeSchema } from '@mabulu-inc/simplicity-schema/testing';
+import { writeSchema } from '@smplcty/schema-flow/testing';
 
 writeSchema('/tmp/test-schema', {
   'tables/users.yaml': '...',
@@ -89,8 +89,8 @@ writeSchema('/tmp/test-schema', {
 
 ```typescript
 import { describe, it, expect, afterEach } from 'vitest';
-import { useTestProject, writeSchema } from '@mabulu-inc/simplicity-schema/testing';
-import { withClient } from '@mabulu-inc/simplicity-schema';
+import { useTestProject, writeSchema } from '@smplcty/schema-flow/testing';
+import { withClient } from '@smplcty/schema-flow';
 
 describe('users table', () => {
   let project: Awaited<ReturnType<typeof useTestProject>>;

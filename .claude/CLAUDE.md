@@ -1,8 +1,8 @@
-# SIMPLICITY-SCHEMA — Claude Code Instructions
+# SCHEMA-FLOW — Claude Code Instructions
 
 ## Project Goal
 
-Build `@mabulu-inc/simplicity-schema` — a declarative schema management tool for PostgreSQL.
+Build `@smplcty/schema-flow` — a declarative schema management tool for PostgreSQL.
 Requirements are defined in `docs/PRD.md`.
 
 ## Methodology

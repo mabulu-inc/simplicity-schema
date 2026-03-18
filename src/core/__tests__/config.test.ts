@@ -10,7 +10,7 @@ describe('resolveConfig', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    delete process.env.SIMPLICITY_SCHEMA_DATABASE_URL;
+    delete process.env.SCHEMA_FLOW_DATABASE_URL;
     delete process.env.DATABASE_URL;
   });
 
@@ -41,9 +41,9 @@ describe('resolveConfig', () => {
     expect(config.connectionString).toBe('postgres://localhost/mydb');
   });
 
-  it('prefers SIMPLICITY_SCHEMA_DATABASE_URL over DATABASE_URL', () => {
+  it('prefers SCHEMA_FLOW_DATABASE_URL over DATABASE_URL', () => {
     process.env.DATABASE_URL = 'postgres://localhost/generic';
-    process.env.SIMPLICITY_SCHEMA_DATABASE_URL = 'postgres://localhost/specific';
+    process.env.SCHEMA_FLOW_DATABASE_URL = 'postgres://localhost/specific';
     const config = resolveConfig();
     expect(config.connectionString).toBe('postgres://localhost/specific');
   });
@@ -77,7 +77,7 @@ describe('--env flag E2E', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    delete process.env.SIMPLICITY_SCHEMA_DATABASE_URL;
+    delete process.env.SCHEMA_FLOW_DATABASE_URL;
     delete process.env.DATABASE_URL;
     tmpDir = join(tmpdir(), `simplicity-env-e2e-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     mkdirSync(tmpDir, { recursive: true });
@@ -89,7 +89,7 @@ describe('--env flag E2E', () => {
   });
 
   it('--env staging selects staging environment block from config file', () => {
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -110,7 +110,7 @@ environments:
 `,
     );
 
-    const parsed = parseArgs(['node', 'simplicity-schema', 'run', '--env', 'staging']);
+    const parsed = parseArgs(['node', 'schema-flow', 'run', '--env', 'staging']);
     expect(parsed.overrides.env).toBe('staging');
 
     const config = resolveConfig({ ...parsed.overrides, configPath });
@@ -122,7 +122,7 @@ environments:
   });
 
   it('--env production selects production environment block', () => {
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -139,7 +139,7 @@ environments:
 `,
     );
 
-    const parsed = parseArgs(['node', 'simplicity-schema', 'plan', '--env', 'production']);
+    const parsed = parseArgs(['node', 'schema-flow', 'plan', '--env', 'production']);
     const config = resolveConfig({ ...parsed.overrides, configPath });
     expect(config.connectionString).toBe('postgres://prod-host/prod_db');
     expect(config.lockTimeout).toBe(15000);
@@ -147,7 +147,7 @@ environments:
   });
 
   it('CLI overrides take priority over environment-specific config', () => {
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -163,7 +163,7 @@ environments:
 
     const parsed = parseArgs([
       'node',
-      'simplicity-schema',
+      'schema-flow',
       'run',
       '--env',
       'staging',
@@ -179,7 +179,7 @@ environments:
   });
 
   it('without --env, only default section is used', () => {
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -194,7 +194,7 @@ environments:
 `,
     );
 
-    const parsed = parseArgs(['node', 'simplicity-schema', 'run']);
+    const parsed = parseArgs(['node', 'schema-flow', 'run']);
     expect(parsed.overrides.env).toBeUndefined();
 
     const config = resolveConfig({ ...parsed.overrides, configPath });
@@ -204,7 +204,7 @@ environments:
 
   it('--env with ${VAR} interpolation in environment block', () => {
     process.env.STAGING_DB_HOST = 'staging-rds.example.com';
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -217,7 +217,7 @@ environments:
 `,
     );
 
-    const parsed = parseArgs(['node', 'simplicity-schema', 'run', '--env', 'staging']);
+    const parsed = parseArgs(['node', 'schema-flow', 'run', '--env', 'staging']);
     const config = resolveConfig({ ...parsed.overrides, configPath });
     expect(config.connectionString).toBe('postgres://staging-rds.example.com/staging_db');
   });

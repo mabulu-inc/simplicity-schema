@@ -1,9 +1,9 @@
 /**
- * Configuration resolution for simplicity-schema.
+ * Configuration resolution for schema-flow.
  *
  * Resolution order (highest priority first):
  * 1. CLI flags (passed as overrides)
- * 2. Config file (simplicity-schema.config.yaml)
+ * 2. Config file (schema-flow.config.yaml)
  * 3. Environment variables
  * 4. Convention defaults
  */
@@ -60,7 +60,7 @@ const DEFAULTS: SimplicitySchemaConfig = {
 };
 
 function resolveConnectionString(): string {
-  return process.env.SIMPLICITY_SCHEMA_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
+  return process.env.SCHEMA_FLOW_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
 }
 
 export function resolveConfig(overrides: ConfigOverrides = {}): SimplicitySchemaConfig {

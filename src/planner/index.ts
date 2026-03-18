@@ -1,5 +1,5 @@
 /**
- * Planner / diff engine for simplicity-schema.
+ * Planner / diff engine for schema-flow.
  *
  * Compares desired (YAML) state vs actual (introspected) state and
  * produces an ordered list of operations to converge the database.

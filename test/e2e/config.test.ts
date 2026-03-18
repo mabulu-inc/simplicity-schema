@@ -39,7 +39,7 @@ describe('E2E config resolution', () => {
 
   it('CLI flags override config file values', async () => {
     // Create a config file with lockTimeout: 9999
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -70,7 +70,7 @@ default:
     process.env.DATABASE_URL = 'postgres://env-host/env_db';
 
     // Config file should override env var connection string
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -100,7 +100,7 @@ default:
   });
 
   it('--env selects environment block', async () => {
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -131,7 +131,7 @@ environments:
     process.env.E2E_DB_HOST = 'interpolated-host.example.com';
     process.env.E2E_DB_NAME = 'interpolated_db';
 
-    const configPath = join(tmpDir, 'simplicity-schema.config.yaml');
+    const configPath = join(tmpDir, 'schema-flow.config.yaml');
     writeFileSync(
       configPath,
       `
@@ -147,7 +147,7 @@ default:
 
   it('missing config file uses defaults', async () => {
     delete process.env.DATABASE_URL;
-    delete process.env.SIMPLICITY_SCHEMA_DATABASE_URL;
+    delete process.env.SCHEMA_FLOW_DATABASE_URL;
 
     // Point to a non-existent config file
     const config = resolveConfig({ configPath: '/nonexistent/path/config.yaml' });

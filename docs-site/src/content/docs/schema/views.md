@@ -59,4 +59,4 @@ comment: 'Aggregated user order statistics'
 
 - When a materialized view's query changes, the tool drops and recreates it, then refreshes the data
 - Indexes, grants, and comments are applied after creation
-- Index format is the same as [table indexes](/simplicity-schema/schema/tables/#indexes)
+- Index format is the same as [table indexes](/schema-flow/schema/tables/#indexes)

@@ -6,7 +6,7 @@ description: Drift detection and static analysis APIs.
 ## Drift detection
 
 ```typescript
-import { detectDrift } from '@mabulu-inc/simplicity-schema';
+import { detectDrift } from '@smplcty/schema-flow';
 
 const report = detectDrift(desired, actual);
 
@@ -75,7 +75,7 @@ interface DriftItem {
 ## Lint
 
 ```typescript
-import { lintPlan } from '@mabulu-inc/simplicity-schema';
+import { lintPlan } from '@smplcty/schema-flow';
 
 const result = lintPlan(plan);
 

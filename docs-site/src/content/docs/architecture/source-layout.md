@@ -1,6 +1,6 @@
 ---
 title: Source layout
-description: How the simplicity-schema codebase is organized.
+description: How the schema-flow codebase is organized.
 ---
 
 ```

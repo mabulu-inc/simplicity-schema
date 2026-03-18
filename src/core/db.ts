@@ -1,5 +1,5 @@
 /**
- * Database connection management for simplicity-schema.
+ * Database connection management for schema-flow.
  *
  * Provides a connection pool singleton, withClient/withTransaction helpers,
  * and retry logic for transient PostgreSQL errors.

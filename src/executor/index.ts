@@ -1,5 +1,5 @@
 /**
- * Executor for simplicity-schema.
+ * Executor for schema-flow.
  *
  * Runs planned operations in phased order within transactions.
  * Supports advisory locking, dry-run mode, and validate mode.
@@ -14,7 +14,7 @@ import { getPool } from '../core/db.js';
 import { ensureHistoryTable, fileNeedsApply, recordFile } from '../core/tracker.js';
 import { ensureSnapshotsTable, saveSnapshot } from '../rollback/index.js';
 
-// Advisory lock key — consistent across all simplicity-schema instances
+// Advisory lock key — consistent across all schema-flow instances
 const ADVISORY_LOCK_KEY = 737_513; // "ss" in ASCII-inspired number
 
 export interface ExecuteOptions {

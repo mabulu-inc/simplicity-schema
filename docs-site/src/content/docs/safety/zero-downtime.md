@@ -1,6 +1,6 @@
 ---
 title: Zero-downtime patterns
-description: How simplicity-schema avoids locking and downtime during migrations.
+description: How schema-flow avoids locking and downtime during migrations.
 ---
 
 ## Foreign keys: NOT VALID + VALIDATE

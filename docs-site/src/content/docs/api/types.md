@@ -3,7 +3,7 @@ title: Types
 description: All exported TypeScript types.
 ---
 
-All types are exported from `@mabulu-inc/simplicity-schema`.
+All types are exported from `@smplcty/schema-flow`.
 
 ## Schema types
 
@@ -31,7 +31,7 @@ import type {
   ExpandDef,
   ForeignKeyRef,
   SchemaGrant,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 ```
 
 ## Enum types
@@ -48,7 +48,7 @@ import type {
   TriggerEvent, // 'INSERT' | 'UPDATE' | 'DELETE' | 'TRUNCATE'
   TriggerForEach, // 'ROW' | 'STATEMENT'
   PolicyCommand, // 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'ALL'
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 ```
 
 ## Planner types
@@ -61,31 +61,31 @@ import type {
   PlanOptions,
   DesiredState,
   ActualState,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 ```
 
 ## Drift types
 
 ```typescript
-import type { DriftReport, DriftItem, DriftItemType, DriftStatus } from '@mabulu-inc/simplicity-schema';
+import type { DriftReport, DriftItem, DriftItemType, DriftStatus } from '@smplcty/schema-flow';
 ```
 
 ## Lint types
 
 ```typescript
-import type { LintResult, LintWarning, LintSeverity } from '@mabulu-inc/simplicity-schema';
+import type { LintResult, LintWarning, LintSeverity } from '@smplcty/schema-flow';
 ```
 
 ## Executor types
 
 ```typescript
-import type { ExecuteOptions, ExecuteResult, InvalidIndex } from '@mabulu-inc/simplicity-schema';
+import type { ExecuteOptions, ExecuteResult, InvalidIndex } from '@smplcty/schema-flow';
 ```
 
 ## Rollback types
 
 ```typescript
-import type { MigrationSnapshot, RollbackResult, RunDownOptions, RunDownResult } from '@mabulu-inc/simplicity-schema';
+import type { MigrationSnapshot, RollbackResult, RunDownOptions, RunDownResult } from '@smplcty/schema-flow';
 ```
 
 ## Expand types
@@ -99,49 +99,49 @@ import type {
   BackfillResult,
   ContractOptions,
   ContractResult,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 ```
 
 ## Generation types
 
 ```typescript
-import type { GenerateInput, GeneratedFile, GenerateSqlOptions } from '@mabulu-inc/simplicity-schema';
+import type { GenerateInput, GeneratedFile, GenerateSqlOptions } from '@smplcty/schema-flow';
 ```
 
 ## Config types
 
 ```typescript
-import type { SimplicitySchemaConfig, ConfigOverrides } from '@mabulu-inc/simplicity-schema';
+import type { SimplicitySchemaConfig, ConfigOverrides } from '@smplcty/schema-flow';
 ```
 
 ## Logger types
 
 ```typescript
-import type { Logger, LoggerOptions } from '@mabulu-inc/simplicity-schema';
+import type { Logger, LoggerOptions } from '@smplcty/schema-flow';
 
-import { LogLevel } from '@mabulu-inc/simplicity-schema';
+import { LogLevel } from '@smplcty/schema-flow';
 ```
 
 ## File types
 
 ```typescript
-import type { Phase, SchemaFile, DiscoveredFiles, SchemaKind, ParsedSchema } from '@mabulu-inc/simplicity-schema';
+import type { Phase, SchemaFile, DiscoveredFiles, SchemaKind, ParsedSchema } from '@smplcty/schema-flow';
 ```
 
 ## Pipeline types
 
 ```typescript
-import type { PipelineOptions, StatusResult, BaselineResult } from '@mabulu-inc/simplicity-schema';
+import type { PipelineOptions, StatusResult, BaselineResult } from '@smplcty/schema-flow';
 ```
 
 ## Database types
 
 ```typescript
-import type { ClientOptions } from '@mabulu-inc/simplicity-schema';
+import type { ClientOptions } from '@smplcty/schema-flow';
 ```
 
 ## Mixin types
 
 ```typescript
-import type { MixinRegistry } from '@mabulu-inc/simplicity-schema';
+import type { MixinRegistry } from '@smplcty/schema-flow';
 ```

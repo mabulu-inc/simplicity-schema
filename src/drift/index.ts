@@ -1,5 +1,5 @@
 /**
- * Drift detection for simplicity-schema.
+ * Drift detection for schema-flow.
  *
  * Performs a read-only comparison of YAML definitions against the live
  * database state, producing a structured DriftReport.

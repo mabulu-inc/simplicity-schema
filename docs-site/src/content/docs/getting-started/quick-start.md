@@ -3,21 +3,16 @@ title: Quick start
 description: Get up and running in 5 minutes.
 ---
 
-## 1. Configure `.npmrc`
+## 1. Install
 
-Set up the GitHub Packages registry so `npx` can resolve the package (see [setup](/simplicity-schema/getting-started/introduction/#setup) for full details):
-
-```ini
-@mabulu-inc:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```bash
+npm install @smplcty/schema-flow
 ```
-
-Make sure `GITHUB_TOKEN` is set in your environment with a token that has `read:packages` scope.
 
 ## 2. Initialize project structure
 
 ```bash
-npx @mabulu-inc/simplicity-schema init --dir ./schema
+npx @smplcty/schema-flow init --dir ./schema
 ```
 
 This creates:
@@ -63,7 +58,7 @@ indexes:
 ## 4. Preview the plan
 
 ```bash
-npx @mabulu-inc/simplicity-schema plan --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow plan --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 This shows what SQL will run without executing anything.
@@ -71,13 +66,13 @@ This shows what SQL will run without executing anything.
 ## 5. Run the migration
 
 ```bash
-npx @mabulu-inc/simplicity-schema run --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow run --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## 6. Check status
 
 ```bash
-npx @mabulu-inc/simplicity-schema status --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow status --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## 7. Detect drift
@@ -85,7 +80,7 @@ npx @mabulu-inc/simplicity-schema status --db postgresql://user:pass@localhost:5
 After manual DB changes or other tools modify the schema:
 
 ```bash
-npx @mabulu-inc/simplicity-schema drift --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow drift --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## Adopting on an existing database
@@ -93,13 +88,13 @@ npx @mabulu-inc/simplicity-schema drift --db postgresql://user:pass@localhost:54
 Generate YAML from your current database:
 
 ```bash
-npx @mabulu-inc/simplicity-schema generate --db postgresql://user:pass@localhost:5432/mydb --output-dir ./schema
+npx @smplcty/schema-flow generate --db postgresql://user:pass@localhost:5432/mydb --output-dir ./schema
 ```
 
 Then baseline so the tool knows the current state is already applied:
 
 ```bash
-npx @mabulu-inc/simplicity-schema baseline --db postgresql://user:pass@localhost:5432/mydb
+npx @smplcty/schema-flow baseline --db postgresql://user:pass@localhost:5432/mydb
 ```
 
 ## Using environment variables
@@ -108,8 +103,8 @@ Instead of passing `--db` every time:
 
 ```bash
 export DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
-npx @mabulu-inc/simplicity-schema plan
-npx @mabulu-inc/simplicity-schema run
+npx @smplcty/schema-flow plan
+npx @smplcty/schema-flow run
 ```
 
-Or use `SIMPLICITY_SCHEMA_DATABASE_URL` (takes precedence over `DATABASE_URL`).
+Or use `SCHEMA_FLOW_DATABASE_URL` (takes precedence over `DATABASE_URL`).

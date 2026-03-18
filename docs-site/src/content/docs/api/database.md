@@ -6,7 +6,7 @@ description: Connection pool, transactions, and low-level database APIs.
 ## Connection management
 
 ```typescript
-import { withClient, withTransaction, closePool, testConnection } from '@mabulu-inc/simplicity-schema';
+import { withClient, withTransaction, closePool, testConnection } from '@smplcty/schema-flow';
 
 // Run a function with a pooled client (auto-release)
 await withClient(connectionString, async (client) => {
@@ -35,7 +35,7 @@ import {
   releaseAdvisoryLock,
   detectInvalidIndexes,
   reindexInvalid,
-} from '@mabulu-inc/simplicity-schema';
+} from '@smplcty/schema-flow';
 
 // Execute a migration plan
 const result = await execute({
