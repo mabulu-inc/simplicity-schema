@@ -748,7 +748,7 @@ Static analysis applied to migration plans before execution:
 
 ## 10. Drift Detection
 
-The `drift` command performs a **read-only** comparison of YAML definitions against the live database.
+The `drift` command performs a **read-only** comparison of YAML definitions against the live database. System and extension-owned objects are excluded from drift detection — they are not user-managed and should never appear as `missing_in_yaml` drift items.
 
 ### Drift Report Structure
 
@@ -811,6 +811,7 @@ When `--apply` is passed, drift detection generates a migration plan to fix all 
 `schema-flow generate` introspects an existing database and produces YAML files:
 
 - Generates one YAML file per table, enum, function, view, role
+- **Excludes system and extension objects** — objects owned by PostgreSQL extensions (e.g. functions from `uuid-ossp`, `pgcrypto`) or system roles (`postgres` superuser) must be filtered out; only user-defined objects are scaffolded
 - `--seeds <table1>,<table2>` flag: also generates seed data from specified tables
 - `--output-dir` flag: target directory (defaults to `./schema`)
 - Useful for bootstrapping schema-flow on an existing project
