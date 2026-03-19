@@ -10,7 +10,7 @@
 - **Safe by default** — Destructive operations blocked unless explicitly allowed; advisory locking prevents concurrent runs
 - **Zero-downtime capable** — NOT VALID constraints, CONCURRENTLY indexes, expand/contract column migrations
 - **Convention over configuration** — Works out of the box with a standard `schema/` directory layout
-- **Clean internals** — Tool state lives in a dedicated `_simplicity` PostgreSQL schema, separate from user objects
+- **Clean internals** — Tool state lives in a dedicated `_smplcty_schema_flow` PostgreSQL schema, separate from user objects
 - **Idempotent** — Every DDL statement uses `IF NOT EXISTS` / `IF EXISTS` guards and is safe to re-run; running the pipeline twice with no schema changes produces no errors and no side-effects
 - **Dual interface** — Full CLI for operators + TypeScript API for programmatic use
 
@@ -25,17 +25,17 @@
 
 ---
 
-## 2. Internal Schema: `_simplicity`
+## 2. Internal Schema: `_smplcty_schema_flow`
 
-schema-flow uses a dedicated PostgreSQL schema named **`_simplicity`** for its own internal bookkeeping. User-defined objects (tables, enums, functions, views, etc.) go into whatever schema the developer configures via `pgSchema` (default: `public`).
+schema-flow uses a dedicated PostgreSQL schema named **`_smplcty_schema_flow`** for its own internal bookkeeping. User-defined objects (tables, enums, functions, views, etc.) go into whatever schema the developer configures via `pgSchema` (default: `public`).
 
-### What Lives in `_simplicity`
+### What Lives in `_smplcty_schema_flow`
 
-- **`_simplicity.history`** — File tracking table (applied migrations, hashes, timestamps)
-- **`_simplicity.expand_state`** — Expand/contract migration state tracker
-- **`_simplicity.snapshots`** — Rollback snapshots
+- **`_smplcty_schema_flow.history`** — File tracking table (applied migrations, hashes, timestamps)
+- **`_smplcty_schema_flow.expand_state`** — Expand/contract migration state tracker
+- **`_smplcty_schema_flow.snapshots`** — Rollback snapshots
 
-The tool creates this schema automatically on first run: `CREATE SCHEMA IF NOT EXISTS _simplicity`.
+The tool creates this schema automatically on first run: `CREATE SCHEMA IF NOT EXISTS _smplcty_schema_flow`.
 
 ### What Lives in the User's Target Schema
 
@@ -46,8 +46,8 @@ All objects defined in YAML are created in the configured `pgSchema` (default `p
 ### Why Separate
 
 - **No collisions** — The tool's internal tables never conflict with user-defined objects, even if the user has a table named `history` or `snapshots`
-- **Clean uninstall** — `DROP SCHEMA _simplicity CASCADE` removes all tool state without touching user data
-- **Clear ownership** — `_simplicity.*` is always tool-managed; everything in the user's schema is their declared state
+- **Clean uninstall** — `DROP SCHEMA _smplcty_schema_flow CASCADE` removes all tool state without touching user data
+- **Clear ownership** — `_smplcty_schema_flow.*` is always tool-managed; everything in the user's schema is their declared state
 
 ---
 
@@ -502,21 +502,21 @@ environments:
 
 ### 5.3 Configuration Options
 
-| Option             | CLI Flag                      | Default      | Description                                                    |
-| ------------------ | ----------------------------- | ------------ | -------------------------------------------------------------- |
-| `connectionString` | `--connection-string`, `--db` | env vars     | PostgreSQL connection string                                   |
-| `baseDir`          | `--dir`                       | `./schema`   | Root schema directory                                          |
-| `pgSchema`         | `--schema`                    | `public`     | Target PostgreSQL schema for user-defined objects              |
-| `dryRun`           | `--dry-run`                   | `false`      | Plan only, don't execute                                       |
-| `allowDestructive` | `--allow-destructive`         | `false`      | Allow drops and destructive changes                            |
-| `skipChecks`       | `--skip-checks`               | `false`      | Skip pre-migration checks                                      |
-| `lockTimeout`      | `--lock-timeout`              | `5000` (ms)  | Lock acquisition timeout                                       |
-| `statementTimeout` | `--statement-timeout`         | `30000` (ms) | Statement execution timeout                                    |
-| `maxRetries`       | `--max-retries`               | `3`          | Max retries on transient errors                                |
-| `historyTable`     | —                             | `history`    | Migration tracking table name (always in `_simplicity` schema) |
-| `verbose`          | `--verbose`                   | `false`      | Verbose output                                                 |
-| `quiet`            | `--quiet`                     | `false`      | Suppress non-error output                                      |
-| `json`             | `--json`                      | `false`      | Output in JSON format                                          |
+| Option             | CLI Flag                      | Default      | Description                                                             |
+| ------------------ | ----------------------------- | ------------ | ----------------------------------------------------------------------- |
+| `connectionString` | `--connection-string`, `--db` | env vars     | PostgreSQL connection string                                            |
+| `baseDir`          | `--dir`                       | `./schema`   | Root schema directory                                                   |
+| `pgSchema`         | `--schema`                    | `public`     | Target PostgreSQL schema for user-defined objects                       |
+| `dryRun`           | `--dry-run`                   | `false`      | Plan only, don't execute                                                |
+| `allowDestructive` | `--allow-destructive`         | `false`      | Allow drops and destructive changes                                     |
+| `skipChecks`       | `--skip-checks`               | `false`      | Skip pre-migration checks                                               |
+| `lockTimeout`      | `--lock-timeout`              | `5000` (ms)  | Lock acquisition timeout                                                |
+| `statementTimeout` | `--statement-timeout`         | `30000` (ms) | Statement execution timeout                                             |
+| `maxRetries`       | `--max-retries`               | `3`          | Max retries on transient errors                                         |
+| `historyTable`     | —                             | `history`    | Migration tracking table name (always in `_smplcty_schema_flow` schema) |
+| `verbose`          | `--verbose`                   | `false`      | Verbose output                                                          |
+| `quiet`            | `--quiet`                     | `false`      | Suppress non-error output                                               |
+| `json`             | `--json`                      | `false`      | Output in JSON format                                                   |
 
 ---
 
@@ -598,7 +598,7 @@ Operations execute in strict dependency order:
 
 | Phase | Object Type        | Notes                                                                                 |
 | ----- | ------------------ | ------------------------------------------------------------------------------------- |
-| 0     | Internal schema    | `CREATE SCHEMA IF NOT EXISTS _simplicity` (tool bookkeeping)                          |
+| 0     | Internal schema    | `CREATE SCHEMA IF NOT EXISTS _smplcty_schema_flow` (tool bookkeeping)                 |
 | 0+    | Prechecks          | Pre-migration assertions (abort if falsy)                                             |
 | 1     | Pre-scripts        | SQL scripts in `pre/`, alphabetical order                                             |
 | 2     | Extensions         | `CREATE EXTENSION IF NOT EXISTS`                                                      |
@@ -844,7 +844,7 @@ When `--apply` is passed, drift detection generates a migration plan to fix all 
   - `create_role` → `DROP ROLE`
   - `grant_*` → `REVOKE`
 - Irreversible operations (e.g., `alter_column`, `add_enum_value`) are skipped
-- Snapshots stored in `_simplicity.snapshots`
+- Snapshots stored in `_smplcty_schema_flow.snapshots`
 
 ### 11.3 Expand/Contract
 
@@ -865,7 +865,7 @@ Zero-downtime column migrations for type changes, renames, or transforms:
 4. Application switches to using new column
 5. `schema-flow contract` drops old column and trigger
 
-State tracked in `_simplicity.expand_state`. `expand-status` shows in-progress migrations.
+State tracked in `_smplcty_schema_flow.expand_state`. `expand-status` shows in-progress migrations.
 
 ### 11.4 SQL Generation
 
@@ -906,9 +906,9 @@ If any precheck query returns a falsy value, migration aborts with the provided 
 
 ## 12. File Tracking
 
-### History Table: `_simplicity.history`
+### History Table: `_smplcty_schema_flow.history`
 
-The history table lives in the `_simplicity` internal schema, separate from user objects.
+The history table lives in the `_smplcty_schema_flow` internal schema, separate from user objects.
 
 | Column       | Type          | Description                      |
 | ------------ | ------------- | -------------------------------- |
